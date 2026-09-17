@@ -94,7 +94,7 @@ qué bloques son obligatorios:
 | Bloque | Qué contiene | A qué alimenta |
 | --- | --- | --- |
 | **Empresa / identidad** | Nombre del cliente o equipo; paquete de marca: logo(s), paleta, tipografías, idioma, formato de fecha/moneda. Se guarda como `templates/brands/<empresa>/` reutilizable entre proyectos | Tema JSON de Power BI, cabeceras de página, locale del modelo |
-| **Orígenes de datos** | Ficheros locales (CSV/XLSX/Parquet) en fases 0-3; SQL, Lakehouse o Direct Lake en fase 4. Ruta por parámetro, nunca absoluta en el modelo | Perfilado, partitions M del modelo |
+| **Orígenes de datos** | Uno o varios orígenes, cada uno con su *adaptador*: ficheros locales (XLSX primero, CSV, Parquet), bases SQL, Lakehouse/Warehouse de Fabric, y **un modelo semántico ya publicado en Fabric** (en ese caso no se genera modelo: se lee su metadato por XMLA/REST y se genera un informe *thin* conectado a él). Ruta y credenciales por parámetro, nunca en el modelo | Perfilado, partitions M del modelo o, con modelo existente, catálogo de campos para el Strategist |
 | **Objetivos** | Audiencia, preguntas de negocio a responder, KPIs prioritarios, decisiones que debe apoyar el informe | Analyst (qué medidas) y Strategist (qué páginas y visuales) |
 | **Definiciones de negocio** | Definición exacta de cada KPI, grano de negocio (qué es una fila válida), reglas de exclusión, cortes temporales (año fiscal, cierre), salvedades conocidas de los datos. El perfilado descubre tipos y claves, **no** qué significa una venta válida | Analyst; se cierra **antes** del gate, porque cambiarlo después rehace medidas, dimensiones y tests |
 | **Seguridad** | Requisitos de seguridad a nivel de fila (RLS): roles, criterio de filtrado, tablas afectadas. Forma parte del modelo y condiciona relaciones | Analyst (roles en TMDL) y tests DAX por rol |
@@ -155,8 +155,13 @@ brief + datos → [1] Perfilado → [2] Analyst: propuesta de modelo (estrella, 
 
 ### 4.3 Decisiones de diseño que fijan el rumbo
 
-1. **Modelo "thick" local en fases 0-3** (PBIP con `.SemanticModel` en modo import leyendo ficheros
-   locales por parámetro de ruta). Sin Fabric ni licencias hasta la fase 4.
+1. **Capa de orígenes intercambiable desde el día uno.** El perfilado y el generador de modelo
+   hablan con una interfaz `Source` (listar tablas, tipos, muestra, expresión M o conexión); cada
+   origen es un adaptador. Fases 0-3 usan el adaptador de ficheros locales con modelo "thick" en
+   modo import (PBIP con `.SemanticModel`, ruta por parámetro). Fase 4 añade SQL, Lakehouse y el
+   adaptador de **modelo semántico existente en Fabric**, que salta la generación de modelo y
+   produce un informe thin. Sin Fabric ni licencias hasta la fase 4, pero sin decisiones que lo
+   impidan después.
 2. **El LLM nunca escribe `visual.json` ni TMDL a mano.** Escribe `spec_lock.yaml`; el código
    escribe ficheros. Si el generador no cubre algo, se amplía el generador **entre fases, no
    durante una fase**. El perímetro de la v1 del emisor queda congelado antes de la Fase 1:
@@ -188,7 +193,7 @@ Objetivo: comprobar a mano los dos puntos que lo pueden tumbar todo.
 - Criterio de salida: abre en Desktop sin errores; `powerbi-desktop screenshot` produce PNG;
   una consulta DAX contra el motor local devuelve el número esperado.
 - **Nuevo criterio de salida, el que valida la arquitectura:** un `spec_lock.yaml` mínimo
-  (1 CSV, 1 tabla, 1 medida, 1 visual) genera modelo e informe **con los mismos emisores que usará
+  (1 Excel, 1 tabla, 1 medida, 1 visual) genera modelo e informe **con los mismos emisores que usará
   el producto**, sin LLM, y el resultado abre y se captura. Fase 0 no termina con un PBIP hecho a
   mano.
 - Si el puente no funciona en esta máquina (Store, políticas corporativas), **el bucle autónomo
@@ -201,7 +206,7 @@ Objetivo: comprobar a mano los dos puntos que lo pueden tumbar todo.
 
 - `project_manager.py init/validate`, `profile_data.py`, `spec_lock.yaml` v1 (una tabla, N medidas,
   1 página), `generate_model.py`, `generate_report.py`, `quality_check.py` (esquema + campos).
-- Criterio: desde un CSV y un `spec_lock.yaml` escrito a mano, salir un PBIP que abre y se captura.
+- Criterio: desde un Excel y un `spec_lock.yaml` escrito a mano, salir un PBIP que abre y se captura.
 
 ### Fase 2 — Modelo real y librerías
 
@@ -210,7 +215,7 @@ Objetivo: comprobar a mano los dos puntos que lo pueden tumbar todo.
   arrancar importando las paletas ya definidas en el generador de presentaciones).
 - Tests DAX automáticos (duckdb como oráculo). Plantillas de página (overview ejecutivo, tendencia,
   detalle tabla).
-- Criterio: un dataset tipo ventas (3 CSV) → informe de 3 páginas sin tocar JSON a mano.
+- Criterio: un Excel sintético de ventas (3 hojas: ventas, productos, clientes) → informe de 3 páginas sin tocar JSON a mano.
 
 ### Fase 2b — Modo revisar, solo diagnóstico (en paralelo a la Fase 2; no depende del emisor)
 
@@ -248,7 +253,8 @@ Objetivo: comprobar a mano los dos puntos que lo pueden tumbar todo.
 
 ### Fase 4 — Fabric
 
-- Despliegue con `fabric-cicd` o `fab`; fuentes Lakehouse / Direct Lake; capturas vía export API
+- Adaptadores SQL, Lakehouse / Direct Lake y modelo semántico existente (informe thin).
+- Despliegue con `fabric-cicd` o `fab`; capturas vía export API
   para máquinas sin Desktop; informes "thin" contra modelos publicados.
 
 ## 6. Riesgos y decisiones abiertas
@@ -268,4 +274,4 @@ Objetivo: comprobar a mano los dos puntos que lo pueden tumbar todo.
 
 **Decisiones que tomar antes de la Fase 1:** (a) Node + CLIs de Microsoft como base, sí/no;
 (b) formato del `spec_lock`: YAML (propuesto) frente a Markdown; (c) dataset de
-referencia para las fases 1-2 (propuesta: ventas sintéticas generadas por script, 3 CSV).
+referencia para las fases 1-2: Excel sintético de ventas generado por script (decidido).
