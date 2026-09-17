@@ -58,6 +58,13 @@ def install_tools() -> None:
         typer.secho(r.stderr.strip()[-1500:], fg=typer.colors.RED)
         raise typer.Exit(code=r.returncode)
     _ok("CLIs instaladas")
+    from .engine import adomd_dll, install_adomd
+
+    if adomd_dll(cfg.tools_path).exists():
+        _ok(f"cliente ADOMD ya presente: {adomd_dll(cfg.tools_path)}")
+    else:
+        typer.echo("Descargando cliente ADOMD (NuGet) ...")
+        _ok(f"cliente ADOMD: {install_adomd(cfg.tools_path)}")
 
 
 @app.command("demo-data")
@@ -107,6 +114,29 @@ def open_(project_dir: Path) -> None:
         raise typer.Exit(code=1)
     subprocess.Popen([str(d.launch_exe), str(pbip)])
     _ok(f"abriendo {pbip} con {d.launch_exe}")
+
+
+@app.command()
+def refresh(project_dir: Path) -> None:
+    """Actualiza los datos del modelo abierto en Desktop (TMSL full refresh contra el motor local)."""
+    from .engine import refresh as _refresh
+
+    cfg = load_config()
+    data = _refresh(cfg.tools_path)
+    _ok(f"actualizado catálogo {data['catalog']} en {data['ms']} ms (puerto {data['port']})")
+
+
+@app.command()
+def query(project_dir: Path, dax: str) -> None:
+    """Ejecuta una consulta DAX (EVALUATE ...) contra el modelo abierto en Desktop y muestra las filas."""
+    from .engine import query as _query
+
+    cfg = load_config()
+    data = _query(cfg.tools_path, dax)
+    rows = data.get("rows") or []
+    for row in rows:
+        typer.echo("  ".join(f"{k}={v}" for k, v in row.items()))
+    _ok(f"{len(rows)} filas en {data['ms']} ms")
 
 
 @app.command()

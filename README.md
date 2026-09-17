@@ -4,7 +4,7 @@ Generador de proyectos Power BI (PBIP: modelo semántico TMDL + informe PBIR) pa
 equipo de consultoría: pipeline por roles, especificación confirmada antes de generar,
 generación determinista y control de calidad (validación, tests DAX, capturas) antes de entregar.
 
-Estado: Fase 0 (spike). Ver [docs/01-analisis-viabilidad.md](docs/01-analisis-viabilidad.md) para
+Estado: Fase 0 completada (spec → PBIP → Desktop → refresh → DAX → captura, todo por comando). Ver [docs/01-analisis-viabilidad.md](docs/01-analisis-viabilidad.md) para
 el análisis, las decisiones y el plan por fases, y [CLAUDE.md](CLAUDE.md) para las reglas de
 trabajo en el repositorio.
 
@@ -25,6 +25,9 @@ uv run pbigen demo-data examples/ventas-demo
 uv run pbigen build examples/ventas-demo
 uv run pbigen validate examples/ventas-demo
 uv run pbigen open examples/ventas-demo
+uv run pbigen refresh examples/ventas-demo
+uv run pbigen query examples/ventas-demo 'EVALUATE ROW("t", [Importe Total])'
+uv run pbigen screenshot examples/ventas-demo
 ```
 
 ## Autoría

@@ -222,6 +222,24 @@ Objetivo: comprobar a mano los dos puntos que lo pueden tumbar todo.
   publicar; no vale con PPU. Es una opción del bloque con infraestructura (fase 4), no un
   sustituto gratuito.
 
+**Resultado (2026-09-17): Fase 0 completada.** Los tres criterios se cumplen en esta máquina:
+Desktop 2.157 abre el PBIP generado desde `spec_lock.yaml` sin errores; `pbigen refresh` carga
+los datos del Excel a través del motor local (TMSL, 250 ms) y `pbigen query` devuelve por DAX el
+importe total exacto del Excel (6.151.060,63 sobre 3.267 filas); `pbigen screenshot` captura la
+página con las tarjetas renderizadas. Lo aprendido, ya incorporado al código:
+
+- El ejecutable de Desktop de la Store no arranca desde `WindowsApps`; se lanza por el alias
+  `%LOCALAPPDATA%\Microsoft\WindowsApps\PBIDesktopStore.exe`.
+- Node no necesita instalador: `nodejs-wheel-binaries` lo trae dentro del entorno Python. Los
+  `.cmd` de npm no encuentran `node`; las CLIs se invocan como `node <script.js>`.
+- La CLI de validación de Microsoft exige `.platform` en informe y modelo, carpetas de página y
+  visual nombradas por su id, y `reportVersionAtImport` en el tema base.
+- Un PBIP recién generado no tiene datos: Desktop muestra "--" hasta actualizar. La actualización
+  se puede lanzar desde fuera con un comando TMSL `refresh` contra el motor local; no hace falta
+  tocar la interfaz. El cliente ADOMD se descarga de NuGet sin administrador.
+- El puente de Desktop solo responde con Desktop abierto; `doctor` lo indica como "no conectado"
+  si no hay ninguna instancia, aunque la preview esté activada.
+
 ### Fase 1 — Esqueleto del generador
 
 - `project_manager.py init/validate`, `profile_data.py`, `spec_lock.yaml` v1 (una tabla, N medidas,

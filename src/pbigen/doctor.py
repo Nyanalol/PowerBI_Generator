@@ -35,6 +35,11 @@ def run_checks(cfg: Config, project_dir: Path | None = None) -> list[Check]:
             detail = (r.stdout or r.stderr).strip().splitlines()[-1] if (r.stdout or r.stderr) else "?"
         checks.append(Check(f"CLI {name}", ok, detail, "pbigen install-tools"))
 
+    from .engine import adomd_dll
+
+    dll = adomd_dll(cfg.tools_path)
+    checks.append(Check("Cliente ADOMD (DAX contra Desktop)", dll.exists(), str(dll), "pbigen install-tools"))
+
     d = find_desktop(cfg.powerbi_desktop_exe or None)
     if d is None:
         checks.append(Check("Power BI Desktop", False, "no encontrado", "instalar Desktop (Store o MSI)"))
