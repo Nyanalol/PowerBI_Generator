@@ -38,6 +38,26 @@ No es una prueba personal. Eso impone requisitos desde el día uno:
   filtros y slicers), que pasan por un escaneo antes de commit o entrega; (3) TMDL, tema y spec,
   seguros. El empaquetado de entrega es una lista blanca, no una copia recursiva de la carpeta.
 
+### 0.1 Cumplimiento y datos sensibles (diseño, no bloqueo)
+
+El generador acabará conectado a datos de clientes que pueden ser confidenciales o contener datos
+personales. No es un impedimento para arrancar, pero sí condiciona decisiones que después son
+caras de cambiar. Reglas de diseño desde la Fase 1:
+
+| Regla | Qué significa en el código |
+| --- | --- |
+| **Clasificación por proyecto** | `project.yaml` lleva `data_classification`: `publica` / `interna` / `confidencial` / `personal`. Lo demás se deriva de ahí |
+| **Los datos no salen de la máquina o del tenant del cliente** | Perfilado y tests DAX se ejecutan en local (duckdb, Desktop) o dentro de Fabric. Ningún dato viaja a un servicio externo por defecto |
+| **El LLM ve metadatos, no filas** | A Analyst y Strategist se les pasa el perfil (nombres, tipos, cardinalidad, rangos, estadísticos). Las filas de muestra son opt-in y solo para `publica` / `interna`; para `confidencial` / `personal` van enmascaradas o no van |
+| **Registro de lo enviado** | Cada llamada a un modelo de lenguaje deja en `analysis/llm_log.jsonl` qué se envió (hash y resumen) para poder auditarlo |
+| **Sin secretos en ficheros generados** | Credenciales solo en `.env` o en el gestor del tenant; el TMDL usa parámetros y conexiones, nunca cadenas con contraseña |
+| **Salida limpia** | El escaneo previo a commit/entrega (§0, clases de artefacto) busca valores literales en filtros PBIR y bloquea `.pbi/cache.abf`. Un comando `purge` borra datos, caché y capturas de un proyecto |
+| **Etiquetas de confidencialidad** | Precondición de admisión (arriba). Cuando Microsoft las soporte en PBIP, pasa a ser un campo del brief |
+| **RLS como parte del modelo** | Los roles se declaran en el spec y se prueban con tests DAX por rol (§4.0) |
+
+Nada de esto exige infraestructura nueva; son convenciones del spec, dos comandos (`scan`,
+`purge`) y una regla sobre qué recibe el LLM.
+
 ## 1. Veredicto
 
 **Es factible.** Tres hechos verificados hoy lo sostienen:

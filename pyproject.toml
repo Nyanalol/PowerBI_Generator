@@ -1,0 +1,34 @@
+[project]
+name = "pbigen"
+version = "0.0.1"
+description = "Generador de proyectos Power BI (PBIP: TMDL + PBIR) a partir de una especificación"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+authors = [{ name = "Miguel Ángel González-Albo Campillo", email = "miguelgonzalezalbo@gmail.com" }]
+dependencies = [
+    "typer>=0.12",
+    "pydantic>=2.7",
+    "pyyaml>=6.0",
+    "jinja2>=3.1",
+    "openpyxl>=3.1",
+    "pandas>=2.2",
+    "jsonschema>=4.22",
+    "nodejs-wheel-binaries>=22",
+]
+
+[project.scripts]
+pbigen = "pbigen.cli:app"
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pbigen"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

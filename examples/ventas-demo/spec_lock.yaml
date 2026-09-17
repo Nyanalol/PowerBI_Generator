@@ -1,0 +1,36 @@
+# Fase 0: el spec mínimo que valida la arquitectura (1 Excel, 1 tabla, 1 medida, 1 página).
+version: 0
+project: VentasDemo
+locale: es-ES
+
+sources:
+  - id: ventas_xlsx
+    type: excel
+    path: sources/ventas.xlsx   # generado con `pbigen demo-data examples/ventas-demo`
+
+model:
+  tables:
+    - name: Ventas
+      source: { source: ventas_xlsx, sheet: Ventas }
+      columns:
+        - { name: Fecha, type: dateTime }
+        - { name: Producto, type: string }
+        - { name: Region, type: string }
+        - { name: Unidades, type: int64, summarize: sum, format: "#,##0" }
+        - { name: Importe, type: double, summarize: sum, format: "#,##0.00" }
+      measures:
+        - name: Importe Total
+          dax: SUM(Ventas[Importe])
+          format: "#,##0 €"
+          description: Suma del importe de todas las ventas
+        - name: Unidades Totales
+          dax: SUM(Ventas[Unidades])
+          format: "#,##0"
+
+report:
+  pages:
+    - name: Resumen
+      visuals:
+        - { type: textbox, name: titulo, text: "Ventas demo", x: 20, y: 20, w: 600, h: 80 }
+        - { type: card, name: kpi_importe, measure: "Ventas[Importe Total]", title: Importe total, x: 20, y: 120, w: 300, h: 160 }
+        - { type: card, name: kpi_unidades, measure: "Ventas[Unidades Totales]", title: Unidades, x: 340, y: 120, w: 300, h: 160 }

@@ -1,0 +1,11 @@
+# Copia este fichero a config.yaml (ignorado por git) y ajusta las rutas.
+# Todo lo que dependa de la máquina va aquí; nada en el código.
+
+# Carpeta donde se instalan las CLIs de Microsoft (npm). Relativa al repo si no es absoluta.
+tools_dir: .tools
+
+# Ruta al ejecutable de Power BI Desktop. Vacío = detección automática (Store o MSI).
+powerbi_desktop_exe: ""
+
+# Familia de Desktop soportada por esta versión del generador (ver docs/01, riesgo T5).
+desktop_supported_family: "2.157"
