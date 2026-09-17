@@ -36,6 +36,16 @@ def version() -> None:
     typer.echo(__version__)
 
 
+@app.command("spec-schema")
+def spec_schema() -> None:
+    """Imprime el JSON Schema del contrato spec_lock.yaml (lo que el emisor sabe serializar, ni más ni menos)."""
+    import json
+
+    from .spec import SpecLock
+
+    typer.echo(json.dumps(SpecLock.model_json_schema(), indent=2, ensure_ascii=False))
+
+
 @app.command()
 def doctor(project_dir: Path | None = typer.Argument(None, help="Proyecto a comprobar (opcional)")) -> None:
     """Comprueba los prerrequisitos de la máquina."""

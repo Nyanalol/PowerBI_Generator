@@ -114,6 +114,13 @@ def visual_json(spec: SpecLock, page: PageSpec, v: VisualSpec, z: int) -> dict:
     elif v.type == "card":
         visual["query"] = {"queryState": {"Data": _role(spec, [v.measure or ""])}, "sortDefinition": {"isDefaultSort": True}}
         visual["drillFilterOtherVisuals"] = True
+        if v.title:
+            # La tarjeta ya tiene etiqueta propia: el título va ahí y el del contenedor se oculta
+            # (patrón recomendado por Microsoft; evita "Importe total" dos veces).
+            visual["objects"] = {
+                "label": [{"properties": {"show": _literal("true"), "text": _literal(f"'{v.title}'")}, "selector": {"id": "default"}}]
+            }
+            visual["visualContainerObjects"] = {"title": [{"properties": {"show": _literal("false")}}]}
     elif v.type in ("line", "column", "bar"):
         qs = {"Category": _role(spec, [v.category or ""], active_first=True), "Y": _role(spec, v.values)}
         if v.series:
@@ -141,7 +148,7 @@ def visual_json(spec: SpecLock, page: PageSpec, v: VisualSpec, z: int) -> dict:
         visual["visualContainerObjects"] = {"title": [{"properties": {"show": _literal("false")}}]}
     else:  # pragma: no cover - el modelo pydantic ya lo impide
         raise ValueError(f"tipo de visual no soportado por el emisor: {v.type}")
-    if v.type != "slicer":
+    if v.type not in ("slicer", "card"):
         objs = _container_objects(v)
         if objs:
             visual.setdefault("visualContainerObjects", {}).update(objs)
