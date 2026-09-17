@@ -147,10 +147,10 @@ def purge(project_dir: Path, yes: bool = typer.Option(False, "--yes", help="No p
 
 
 @app.command("demo-data")
-def demo_data(project_dir: Path, year: int = 2025) -> None:
-    """Genera sources/ventas.xlsx sintético en el proyecto."""
+def demo_data(project_dir: Path) -> None:
+    """Genera sources/ventas.xlsx sintético (Ventas 2024-2025, Productos, Clientes) en el proyecto."""
     path = project_dir / "sources" / "ventas.xlsx"
-    rows, total = generate_ventas(path, year=year)
+    rows, total = generate_ventas(path)
     _ok(f"{path} ({rows} filas, importe total {total:,.2f})")
 
 
@@ -191,8 +191,25 @@ def open_(project_dir: Path) -> None:
     if d is None:
         _bad("Power BI Desktop no encontrado")
         raise typer.Exit(code=1)
+    for pid in _desktop_pids_with(cfg, pbip):
+        # Un cambio de modelo (TMDL) solo se aplica reabriendo; el puente solo recarga el informe.
+        subprocess.run(["taskkill", "/PID", str(pid), "/F"], capture_output=True)
+        _ok(f"cerrada la instancia de Desktop {pid} que tenía abierto este PBIP")
     subprocess.Popen([str(d.launch_exe), str(pbip)])
     _ok(f"abriendo {pbip} con {d.launch_exe}")
+
+
+def _desktop_pids_with(cfg, pbip: Path) -> list[int]:  # type: ignore[no-untyped-def]
+    """PIDs de Desktop (según el puente) que tienen abierto exactamente este .pbip."""
+    import json
+
+    try:
+        r = run_cli(cfg.tools_path, "powerbi-desktop", "status")
+        data = json.loads(r.stdout.strip() or "{}")
+    except Exception:  # noqa: BLE001
+        return []
+    want = str(pbip).lower()
+    return [int(i["pid"]) for i in data.get("instances", []) if str(i.get("currentFilePath", "")).lower() == want]
 
 
 @app.command()

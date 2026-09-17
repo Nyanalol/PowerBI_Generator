@@ -1,5 +1,5 @@
-# Fase 0: el spec mínimo que valida la arquitectura (1 Excel, 1 tabla, 1 medida, 1 página).
-version: 0
+# Fase 2: estrella con tabla de fechas, relaciones, time intelligence, 3 páginas, tema de cliente.
+version: 1
 project: VentasDemo
 locale: es-ES
 
@@ -9,28 +9,79 @@ sources:
     path: sources/ventas.xlsx   # generado con `pbigen demo-data examples/ventas-demo`
 
 model:
+  date_table:
+    name: Fechas
+    start: 2024-01-01
+    end: 2025-12-31
+
+  relationships:
+    - { from: "Ventas[Fecha]", to: "Fechas[Fecha]" }
+    - { from: "Ventas[ProductoId]", to: "Productos[ProductoId]" }
+    - { from: "Ventas[ClienteId]", to: "Clientes[ClienteId]" }
+
   tables:
     - name: Ventas
+      description: Líneas de venta (una fila por día, producto y cliente)
       source: { source: ventas_xlsx, sheet: Ventas }
       columns:
-        - { name: Fecha, type: dateTime }
-        - { name: Producto, type: string }
-        - { name: Region, type: string }
+        - { name: Fecha, type: dateTime, format: "dd/MM/yyyy" }
+        - { name: ProductoId, type: int64, hidden: true }
+        - { name: ClienteId, type: int64, hidden: true }
         - { name: Unidades, type: int64, summarize: sum, format: "#,##0" }
         - { name: Importe, type: double, summarize: sum, format: "#,##0.00" }
       measures:
-        - name: Importe Total
-          dax: SUM(Ventas[Importe])
-          format: "#,##0 €"
-          description: Suma del importe de todas las ventas
-        - name: Unidades Totales
-          dax: SUM(Ventas[Unidades])
-          format: "#,##0"
+        - { name: Importe Total, dax: "SUM(Ventas[Importe])", format: "#,##0 €", description: Suma del importe de todas las ventas, folder: Importe }
+        - { name: Unidades Totales, dax: "SUM(Ventas[Unidades])", format: "#,##0", description: Unidades vendidas, folder: Unidades }
+        - { name: Importe YTD, dax: "TOTALYTD([Importe Total], Fechas[Fecha])", format: "#,##0 €", description: Importe acumulado del año en curso, folder: Importe }
+        - { name: Importe PY, dax: "CALCULATE([Importe Total], SAMEPERIODLASTYEAR(Fechas[Fecha]))", format: "#,##0 €", description: Importe del mismo periodo del año anterior, folder: Importe }
+        - { name: Var % vs PY, dax: "DIVIDE([Importe Total] - [Importe PY], [Importe PY])", format: "0.0%", description: Variación porcentual frente al año anterior, folder: Importe }
+        - { name: Ticket Medio, dax: "DIVIDE([Importe Total], COUNTROWS(Ventas))", format: "#,##0.00 €", description: Importe medio por línea de venta, folder: Importe }
+
+    - name: Productos
+      description: Catálogo de productos
+      source: { source: ventas_xlsx, sheet: Productos }
+      columns:
+        - { name: ProductoId, type: int64, hidden: true }
+        - { name: Producto, type: string }
+        - { name: Categoria, type: string }
+        - { name: Precio, type: double, format: "#,##0.00 €" }
+
+    - name: Clientes
+      description: Clientes con su región y segmento
+      source: { source: ventas_xlsx, sheet: Clientes }
+      columns:
+        - { name: ClienteId, type: int64, hidden: true }
+        - { name: Cliente, type: string }
+        - { name: Region, type: string }
+        - { name: Segmento, type: string }
 
 report:
+  theme: { brand: demo }
   pages:
     - name: Resumen
       visuals:
-        - { type: textbox, name: titulo, text: "Ventas demo", x: 20, y: 20, w: 600, h: 80 }
-        - { type: card, name: kpi_importe, measure: "Ventas[Importe Total]", title: Importe total, x: 20, y: 120, w: 300, h: 160 }
-        - { type: card, name: kpi_unidades, measure: "Ventas[Unidades Totales]", title: Unidades, x: 340, y: 120, w: 300, h: 160 }
+        - { type: textbox, name: titulo, text: "Ventas — resumen ejecutivo", font_size_pt: 22, grid: { col: 0, row: 0, cols: 8, rows: 1 } }
+        - { type: slicer, name: f_anio, field: "Fechas[Año]", mode: dropdown, title: Año, grid: { col: 8, row: 0, cols: 2, rows: 1 } }
+        - { type: slicer, name: f_region, field: "Clientes[Region]", mode: dropdown, title: Región, grid: { col: 10, row: 0, cols: 2, rows: 1 } }
+        - { type: card, name: kpi_importe, measure: "Ventas[Importe Total]", title: Importe total, grid: { col: 0, row: 1, cols: 3, rows: 1 } }
+        - { type: card, name: kpi_ytd, measure: "Ventas[Importe YTD]", title: Importe YTD, grid: { col: 3, row: 1, cols: 3, rows: 1 } }
+        - { type: card, name: kpi_var, measure: "Ventas[Var % vs PY]", title: Variación vs año anterior, grid: { col: 6, row: 1, cols: 3, rows: 1 } }
+        - { type: card, name: kpi_unidades, measure: "Ventas[Unidades Totales]", title: Unidades, grid: { col: 9, row: 1, cols: 3, rows: 1 } }
+        - { type: line, name: tendencia, title: Importe mensual, category: "Fechas[AñoMes]", values: ["Ventas[Importe Total]", "Ventas[Importe PY]"], grid: { col: 0, row: 2, cols: 8, rows: 3 } }
+        - { type: bar, name: por_region, title: Importe por región, category: "Clientes[Region]", values: ["Ventas[Importe Total]"], grid: { col: 8, row: 2, cols: 4, rows: 3 } }
+        - { type: column, name: por_categoria, title: Importe por categoría, category: "Productos[Categoria]", values: ["Ventas[Importe Total]"], grid: { col: 0, row: 5, cols: 6, rows: 3 } }
+        - { type: column, name: por_producto, title: Unidades por producto, category: "Productos[Producto]", values: ["Ventas[Unidades Totales]"], grid: { col: 6, row: 5, cols: 6, rows: 3 } }
+
+    - name: Tendencia
+      visuals:
+        - { type: textbox, name: titulo, text: "Tendencia mensual y comparación anual", font_size_pt: 22, grid: { col: 0, row: 0, cols: 9, rows: 1 } }
+        - { type: slicer, name: f_categoria, field: "Productos[Categoria]", mode: dropdown, title: Categoría, grid: { col: 9, row: 0, cols: 3, rows: 1 } }
+        - { type: line, name: mensual, title: Importe mensual vs año anterior, category: "Fechas[AñoMes]", values: ["Ventas[Importe Total]", "Ventas[Importe PY]"], grid: { col: 0, row: 1, cols: 12, rows: 4 } }
+        - { type: column, name: por_mes, title: Importe por mes, category: "Fechas[Mes]", series: "Fechas[Año]", values: ["Ventas[Importe Total]"], grid: { col: 0, row: 5, cols: 12, rows: 3 } }
+
+    - name: Detalle
+      visuals:
+        - { type: textbox, name: titulo, text: "Detalle por cliente y producto", font_size_pt: 22, grid: { col: 0, row: 0, cols: 8, rows: 1 } }
+        - { type: slicer, name: f_segmento, field: "Clientes[Segmento]", mode: list, title: Segmento, grid: { col: 8, row: 0, cols: 4, rows: 2 } }
+        - { type: matrix, name: tabla, title: Importe por cliente y categoría, rows: ["Clientes[Region]", "Clientes[Cliente]"], columns: ["Productos[Categoria]"], values: ["Ventas[Importe Total]", "Ventas[Unidades Totales]", "Ventas[Ticket Medio]"], grid: { col: 0, row: 1, cols: 8, rows: 7 } }
+        - { type: bar, name: top_clientes, title: Importe por cliente, category: "Clientes[Cliente]", values: ["Ventas[Importe Total]"], grid: { col: 8, row: 2, cols: 4, rows: 6 } }

@@ -1,4 +1,5 @@
 # Tests DAX contra el modelo abierto en Desktop, con duckdb sobre el mismo Excel como oráculo.
+# Las hojas del Excel están disponibles en SQL con su nombre: Ventas, Productos, Clientes.
 - name: importe total
   dax: EVALUATE ROW("v", [Importe Total])
   sql: SELECT SUM(Importe) FROM Ventas
@@ -11,10 +12,26 @@
   dax: EVALUATE ROW("n", COUNTROWS(Ventas))
   sql: SELECT COUNT(*) FROM Ventas
 
-- name: importe por región
-  dax: EVALUATE SUMMARIZECOLUMNS(Ventas[Region], "Importe", [Importe Total])
-  sql: SELECT Region, SUM(Importe) FROM Ventas GROUP BY Region
+- name: importe por región (relación Ventas -> Clientes)
+  dax: EVALUATE SUMMARIZECOLUMNS(Clientes[Region], "Importe", [Importe Total])
+  sql: SELECT c.Region, SUM(v.Importe) FROM Ventas v JOIN Clientes c USING (ClienteId) GROUP BY c.Region
 
-- name: importe por producto
-  dax: EVALUATE SUMMARIZECOLUMNS(Ventas[Producto], "Importe", [Importe Total])
-  sql: SELECT Producto, SUM(Importe) FROM Ventas GROUP BY Producto
+- name: importe por categoría (relación Ventas -> Productos)
+  dax: EVALUATE SUMMARIZECOLUMNS(Productos[Categoria], "Importe", [Importe Total])
+  sql: SELECT p.Categoria, SUM(v.Importe) FROM Ventas v JOIN Productos p USING (ProductoId) GROUP BY p.Categoria
+
+- name: importe por año (tabla de fechas)
+  dax: EVALUATE SUMMARIZECOLUMNS(Fechas[Año], "Importe", [Importe Total])
+  sql: SELECT CAST(YEAR(Fecha) AS BIGINT), SUM(Importe) FROM Ventas GROUP BY 1
+
+- name: YTD a 30 de junio de 2025
+  dax: EVALUATE CALCULATETABLE(ROW("v", [Importe YTD]), Fechas[Fecha] = DATE(2025, 6, 30))
+  sql: SELECT SUM(Importe) FROM Ventas WHERE Fecha >= '2025-01-01' AND Fecha <= '2025-06-30'
+
+- name: PY de marzo de 2025 es marzo de 2024
+  dax: EVALUATE CALCULATETABLE(ROW("v", [Importe PY]), Fechas[AñoMes] = "2025-03")
+  sql: SELECT SUM(Importe) FROM Ventas WHERE Fecha >= '2024-03-01' AND Fecha <= '2024-03-31'
+
+- name: ticket medio
+  dax: EVALUATE ROW("v", [Ticket Medio])
+  sql: SELECT SUM(Importe) / COUNT(*) FROM Ventas

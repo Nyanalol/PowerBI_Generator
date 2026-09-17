@@ -1,4 +1,4 @@
-"""Tests de la Fase 0: el productor real (`build_project`) sobre el ejemplo versionado."""
+"""Tests del emisor: el productor real (`build_project`) sobre el ejemplo versionado (spec v1)."""
 
 from __future__ import annotations
 
@@ -27,33 +27,53 @@ def project(tmp_path_factory: pytest.TempPathFactory) -> Path:
 
 
 def _tree_digest(root: Path) -> dict[str, str]:
-    out = {}
-    for f in sorted(root.rglob("*")):
-        if f.is_file():
-            out[str(f.relative_to(root))] = hashlib.sha1(f.read_bytes()).hexdigest()
-    return out
+    return {str(f.relative_to(root)): hashlib.sha1(f.read_bytes()).hexdigest() for f in sorted(root.rglob("*")) if f.is_file()}
 
 
 def test_spec_loads_and_cross_refs_hold() -> None:
     spec = load_spec(EXAMPLE / "spec_lock.yaml")
-    assert spec.project == "VentasDemo"
-    assert {m.name for m in spec.model.tables[0].measures} >= {"Importe Total", "Unidades Totales"}
+    assert spec.project == "VentasDemo" and spec.version == 1
+    assert spec.field_kind("Ventas[Importe Total]") == "Measure"
+    assert spec.field_kind("Fechas[AñoMes]") == "Column"
+    assert len(spec.model.relationships) == 3 and len(spec.report.pages) == 3
 
 
-def test_spec_rejects_unknown_measure(tmp_path: Path) -> None:
-    text = (EXAMPLE / "spec_lock.yaml").read_text(encoding="utf-8").replace("Ventas[Importe Total]", "Ventas[NoExiste]")
+@pytest.mark.parametrize(
+    "bad, msg",
+    [
+        ("Ventas[Importe Total]\", title: Importe total", "NoExiste"),
+    ],
+)
+def test_spec_rejects_unknown_measure(tmp_path: Path, bad: str, msg: str) -> None:
+    text = (EXAMPLE / "spec_lock.yaml").read_text(encoding="utf-8").replace('measure: "Ventas[Importe Total]"', 'measure: "Ventas[NoExiste]"', 1)
     (tmp_path / "spec_lock.yaml").write_text(text, encoding="utf-8")
-    with pytest.raises(ValueError, match="NoExiste"):
+    with pytest.raises(ValueError, match=msg):
+        load_spec(tmp_path / "spec_lock.yaml")
+
+
+def test_spec_rejects_column_where_measure_expected(tmp_path: Path) -> None:
+    text = (EXAMPLE / "spec_lock.yaml").read_text(encoding="utf-8").replace('measure: "Ventas[Importe Total]"', 'measure: "Ventas[Importe]"', 1)
+    (tmp_path / "spec_lock.yaml").write_text(text, encoding="utf-8")
+    with pytest.raises(ValueError, match="debe ser una medida"):
         load_spec(tmp_path / "spec_lock.yaml")
 
 
 def test_spec_rejects_unknown_keys() -> None:
-    data = {"version": 0, "project": "X", "sources": [], "model": {"tables": []}, "report": {"pages": []}, "extra": 1}
+    data = {"version": 1, "project": "X", "sources": [], "model": {"tables": []}, "report": {"pages": []}, "extra": 1}
     with pytest.raises(ValueError):
         SpecLock.model_validate(data)
 
 
+def test_grid_fits_slicer_minimum_height() -> None:
+    from pbigen.spec import GridPos
+
+    x, y, w, h = GridPos(col=8, row=0, cols=2, rows=1).to_px()
+    assert h >= 76, "un slicer desplegable con cabecera necesita 76 px"
+    assert x + w <= 1280 and y + h <= 720
+
+
 def test_build_writes_expected_files(project: Path) -> None:
+    spec = load_spec(project / "spec_lock.yaml")
     r = build_project(project)
     files = {str(f.relative_to(r.out_dir)).replace("\\", "/") for f in r.out_dir.rglob("*") if f.is_file()}
     expected = {
@@ -68,30 +88,54 @@ def test_build_writes_expected_files(project: Path) -> None:
         "VentasDemo.SemanticModel/definition/database.tmdl",
         "VentasDemo.SemanticModel/definition/model.tmdl",
         "VentasDemo.SemanticModel/definition/expressions.tmdl",
+        "VentasDemo.SemanticModel/definition/relationships.tmdl",
         "VentasDemo.SemanticModel/definition/tables/Ventas.tmdl",
+        "VentasDemo.SemanticModel/definition/tables/Fechas.tmdl",
     }
     assert expected <= files
+    themes = [f for f in files if f.startswith("VentasDemo.Report/StaticResources/RegisteredResources/demo-")]
+    assert len(themes) == 1, "tema de cliente registrado con sufijo hash"
+    report = json.loads((r.report / "definition" / "report.json").read_text(encoding="utf-8"))
+    assert report["themeCollection"]["customTheme"]["name"] == Path(themes[0]).name
     pages = json.loads((r.report / "definition" / "pages" / "pages.json").read_text(encoding="utf-8"))
-    page_dir = r.report / "definition" / "pages" / pages["pageOrder"][0]
-    assert (page_dir / "page.json").exists(), "la carpeta de página debe llamarse como su id"
-    visuals = list((page_dir / "visuals").iterdir())
-    assert len(visuals) == 3
-    for vdir in visuals:
-        doc = json.loads((vdir / "visual.json").read_text(encoding="utf-8"))
-        assert doc["name"] == vdir.name
+    for page_spec, page_id in zip(spec.report.pages, pages["pageOrder"]):
+        page_dir = r.report / "definition" / "pages" / page_id
+        assert (page_dir / "page.json").exists()
+        visuals = list((page_dir / "visuals").iterdir())
+        assert len(visuals) == len(page_spec.visuals)
+        for vdir in visuals:
+            doc = json.loads((vdir / "visual.json").read_text(encoding="utf-8"))
+            assert doc["name"] == vdir.name
+
+
+def test_visual_types_and_roles(project: Path) -> None:
+    r = build_project(project)
+    kinds: dict[str, set[str]] = {}
+    for v in (r.report / "definition" / "pages").glob("*/visuals/*/visual.json"):
+        doc = json.loads(v.read_text(encoding="utf-8"))["visual"]
+        kinds.setdefault(doc["visualType"], set()).update(doc.get("query", {}).get("queryState", {}).keys())
+    assert kinds["lineChart"] == {"Category", "Y"}
+    assert kinds["clusteredColumnChart"] >= {"Category", "Y"} and "Series" in kinds["clusteredColumnChart"]
+    assert kinds["pivotTable"] == {"Rows", "Columns", "Values"}
+    assert kinds["slicer"] == {"Values"}
+    assert kinds["cardVisual"] == {"Data"}
+    assert "textbox" in kinds
 
 
 def test_build_is_deterministic(project: Path) -> None:
-    first = _tree_digest(build_project(project).out_dir)
-    second = _tree_digest(build_project(project).out_dir)
-    assert first == second
+    assert _tree_digest(build_project(project).out_dir) == _tree_digest(build_project(project).out_dir)
 
 
-def test_tmdl_partition_reads_excel_by_parameter(project: Path) -> None:
+def test_tmdl_model_shape(project: Path) -> None:
     r = build_project(project)
-    tmdl = (r.semantic_model / "definition" / "tables" / "Ventas.tmdl").read_text(encoding="utf-8")
-    assert 'Excel.Workbook(File.Contents(#"DataFolder" & "\\ventas.xlsx")' in tmdl
-    assert "measure 'Importe Total' = SUM(Ventas[Importe])" in tmdl
-    assert "\tpartition Ventas = m" in tmdl
-    expr = (r.semantic_model / "definition" / "expressions.tmdl").read_text(encoding="utf-8")
-    assert str(project / "sources").replace("/", "\\") in expr
+    ventas = (r.semantic_model / "definition" / "tables" / "Ventas.tmdl").read_text(encoding="utf-8")
+    assert 'Excel.Workbook(File.Contents(#"DataFolder" & "\\ventas.xlsx")' in ventas
+    assert "\tmeasure 'Importe YTD' = TOTALYTD([Importe Total], Fechas[Fecha])" in ventas
+    assert "\tcolumn ProductoId\n\t\tdataType: int64\n\t\tisHidden" in ventas
+    fechas = (r.semantic_model / "definition" / "tables" / "Fechas.tmdl").read_text(encoding="utf-8")
+    assert "\tdataCategory: Time" in fechas and "\t\tisKey" in fechas and "= calculated" in fechas
+    assert "\t\tsortByColumn: MesNum" in fechas
+    rels = (r.semantic_model / "definition" / "relationships.tmdl").read_text(encoding="utf-8")
+    assert "\tfromColumn: Ventas.ProductoId\n\ttoColumn: Productos.ProductoId" in rels
+    model = (r.semantic_model / "definition" / "model.tmdl").read_text(encoding="utf-8")
+    assert "ref table Fechas" in model

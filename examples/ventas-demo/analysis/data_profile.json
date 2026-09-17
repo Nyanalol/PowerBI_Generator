@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-17T09:46:03",
+  "generated_at": "2026-09-17T09:52:57",
   "sources": [
     {
       "id": "ventas_xlsx",
@@ -8,17 +8,87 @@
       "tables": [
         {
           "name": "Ventas",
-          "rows": 3267,
+          "rows": 6448,
           "columns": [
             {
               "name": "Fecha",
               "pandas_dtype": "datetime64[us]",
               "suggested_type": "dateTime",
               "nulls": 0,
-              "distinct": 365,
+              "distinct": 731,
               "is_unique": false,
-              "min": "2025-01-01T00:00:00",
+              "min": "2024-01-01T00:00:00",
               "max": "2025-12-31T00:00:00"
+            },
+            {
+              "name": "ProductoId",
+              "pandas_dtype": "int64",
+              "suggested_type": "int64",
+              "nulls": 0,
+              "distinct": 5,
+              "is_unique": false,
+              "min": 1,
+              "max": 5,
+              "sum": 19364,
+              "mean": 3.0031
+            },
+            {
+              "name": "ClienteId",
+              "pandas_dtype": "int64",
+              "suggested_type": "int64",
+              "nulls": 0,
+              "distinct": 8,
+              "is_unique": false,
+              "min": 1,
+              "max": 8,
+              "sum": 28808,
+              "mean": 4.4677
+            },
+            {
+              "name": "Unidades",
+              "pandas_dtype": "int64",
+              "suggested_type": "int64",
+              "nulls": 0,
+              "distinct": 12,
+              "is_unique": false,
+              "min": 1,
+              "max": 12,
+              "sum": 41863,
+              "mean": 6.4924
+            },
+            {
+              "name": "Importe",
+              "pandas_dtype": "float64",
+              "suggested_type": "double",
+              "nulls": 0,
+              "distinct": 6337,
+              "is_unique": false,
+              "min": 22.63,
+              "max": 13496.11,
+              "sum": 12580440.12,
+              "mean": 1951.0608
+            }
+          ],
+          "candidate_keys": [],
+          "date_columns": [
+            "Fecha"
+          ]
+        },
+        {
+          "name": "Productos",
+          "rows": 5,
+          "columns": [
+            {
+              "name": "ProductoId",
+              "pandas_dtype": "int64",
+              "suggested_type": "int64",
+              "nulls": 0,
+              "distinct": 5,
+              "is_unique": true,
+              "min": 1,
+              "max": 5,
+              "sum": 15,
+              "mean": 3.0
             },
             {
               "name": "Producto",
@@ -26,13 +96,80 @@
               "suggested_type": "string",
               "nulls": 0,
               "distinct": 5,
-              "is_unique": false,
+              "is_unique": true,
               "values": [
                 "Portátil",
                 "Monitor",
                 "Teclado",
                 "Ratón",
                 "Docking"
+              ]
+            },
+            {
+              "name": "Categoria",
+              "pandas_dtype": "str",
+              "suggested_type": "string",
+              "nulls": 0,
+              "distinct": 3,
+              "is_unique": false,
+              "values": [
+                "Equipos",
+                "Periféricos",
+                "Accesorios"
+              ]
+            },
+            {
+              "name": "Precio",
+              "pandas_dtype": "int64",
+              "suggested_type": "int64",
+              "nulls": 0,
+              "distinct": 5,
+              "is_unique": true,
+              "min": 25,
+              "max": 950,
+              "sum": 1440,
+              "mean": 288.0
+            }
+          ],
+          "candidate_keys": [
+            "ProductoId",
+            "Producto",
+            "Precio"
+          ],
+          "date_columns": []
+        },
+        {
+          "name": "Clientes",
+          "rows": 8,
+          "columns": [
+            {
+              "name": "ClienteId",
+              "pandas_dtype": "int64",
+              "suggested_type": "int64",
+              "nulls": 0,
+              "distinct": 8,
+              "is_unique": true,
+              "min": 1,
+              "max": 8,
+              "sum": 36,
+              "mean": 4.5
+            },
+            {
+              "name": "Cliente",
+              "pandas_dtype": "str",
+              "suggested_type": "string",
+              "nulls": 0,
+              "distinct": 8,
+              "is_unique": true,
+              "values": [
+                "Acme SA",
+                "Bolívar SL",
+                "Cantábrico SL",
+                "Delta Corp",
+                "Ébano SA",
+                "Fénix SL",
+                "Girasol SL",
+                "Horizonte SA"
               ]
             },
             {
@@ -45,40 +182,29 @@
               "values": [
                 "Norte",
                 "Sur",
-                "Centro",
                 "Este",
-                "Oeste"
+                "Oeste",
+                "Centro"
               ]
             },
             {
-              "name": "Unidades",
-              "pandas_dtype": "int64",
-              "suggested_type": "int64",
+              "name": "Segmento",
+              "pandas_dtype": "str",
+              "suggested_type": "string",
               "nulls": 0,
-              "distinct": 12,
+              "distinct": 2,
               "is_unique": false,
-              "min": 1,
-              "max": 12,
-              "sum": 20797,
-              "mean": 6.3658
-            },
-            {
-              "name": "Importe",
-              "pandas_dtype": "float64",
-              "suggested_type": "double",
-              "nulls": 0,
-              "distinct": 3229,
-              "is_unique": false,
-              "min": 22.63,
-              "max": 12463.36,
-              "sum": 6151060.63,
-              "mean": 1882.7856
+              "values": [
+                "Empresa",
+                "Pyme"
+              ]
             }
           ],
-          "candidate_keys": [],
-          "date_columns": [
-            "Fecha"
-          ]
+          "candidate_keys": [
+            "ClienteId",
+            "Cliente"
+          ],
+          "date_columns": []
         }
       ]
     }

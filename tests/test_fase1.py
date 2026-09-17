@@ -43,39 +43,39 @@ def test_profile_reports_types_and_facts(project: Path) -> None:
     data = json.loads(out.read_text(encoding="utf-8"))
     table = data["sources"][0]["tables"][0]
     types = {c["name"]: c["suggested_type"] for c in table["columns"]}
-    assert types == {"Fecha": "dateTime", "Producto": "string", "Region": "string", "Unidades": "int64", "Importe": "double"}
-    assert table["rows"] == 3267 and table["date_columns"] == ["Fecha"]
+    assert types == {"Fecha": "dateTime", "ProductoId": "int64", "ClienteId": "int64", "Unidades": "int64", "Importe": "double"}
+    assert table["rows"] == 6448 and table["date_columns"] == ["Fecha"]
+    assert [t["name"] for t in data["sources"][0]["tables"]] == ["Ventas", "Productos", "Clientes"]
+    productos = data["sources"][0]["tables"][1]
+    assert {"ProductoId", "Producto"} <= set(productos["candidate_keys"])
     assert "sample" not in table, "sin filas de muestra por defecto"
     importe = next(c for c in table["columns"] if c["name"] == "Importe")
-    assert abs(importe["sum"] - 6151060.63) < 0.01
+    assert abs(importe["sum"] - 12580440.12) < 0.01
 
 
 def test_check_passes_on_generated_output_and_reads_model(project: Path) -> None:
     r = build_project(project)
     objs = read_model_objects(r.semantic_model)
-    assert objs["Ventas"]["measures"] == {"Importe Total", "Unidades Totales"}
-    assert "Importe" in objs["Ventas"]["columns"]
+    assert {"Importe Total", "Importe YTD", "Importe PY", "Ticket Medio"} <= objs["Ventas"]["measures"]
+    assert "Importe" in objs["Ventas"]["columns"] and "AñoMes" in objs["Fechas"]["columns"]
     findings = check_report(r.report, r.semantic_model)
-    assert not [f for f in findings if f.severity == "error"]
-    assert {f.code for f in findings} == {"MEASURE_NO_DESCRIPTION"}
+    assert findings == [], [f.message for f in findings]
 
 
 def test_check_detects_broken_binding_and_overlap(project: Path) -> None:
     r = build_project(project)
-    vis = next((r.report / "definition" / "pages").glob("*/visuals/*/visual.json"))
+    cards = [v for v in (r.report / "definition" / "pages").glob("*/visuals/*/visual.json") if json.loads(v.read_text(encoding="utf-8"))["visual"]["visualType"] == "cardVisual"]
+    vis = cards[0]
     doc = json.loads(vis.read_text(encoding="utf-8"))
-    if "query" not in doc["visual"]:
-        vis = [v for v in (r.report / "definition" / "pages").glob("*/visuals/*/visual.json") if "query" in json.loads(v.read_text(encoding="utf-8"))["visual"]][0]
-        doc = json.loads(vis.read_text(encoding="utf-8"))
     doc["visual"]["query"]["queryState"]["Data"]["projections"][0]["field"]["Measure"]["Property"] = "NoExiste"
-    doc["position"].update({"x": 0, "y": 0})  # solapa con el textbox en (20,20)
+    doc["position"].update({"x": 0, "y": 0})  # solapa con el textbox del título
     vis.write_text(json.dumps(doc), encoding="utf-8")
     codes = {f.code for f in check_report(r.report, r.semantic_model)}
     assert {"BINDING_FIELD_MISSING", "VISUAL_OVERLAP"} <= codes
 
 
 def test_daxtest_helpers_normalize_and_compare(project: Path) -> None:
-    assert len(load_tests(project)) == 5
+    assert len(load_tests(project)) == 9
     assert _norm("1,234.5") == 1234.5 and _norm("2025-01-01 00:00:00") == "2025-01-01T00:00:00"
     assert _rows_equal([("Norte", 10.001)], [("Norte", 10.0)], tol=0.005)
     assert not _rows_equal([("Norte", 10.1)], [("Norte", 10.0)], tol=0.005)
