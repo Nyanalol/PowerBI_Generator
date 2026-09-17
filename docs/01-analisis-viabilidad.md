@@ -89,7 +89,7 @@ brief + datos → [1] Perfilado → [2] Analyst: propuesta de modelo (estrella, 
 ```
 
 - **Perfilado** (`scripts/profile_data.py`): duckdb/pandas. Escribe `analysis/data_profile.json`.
-  Equivale a `source_to_md.py`: hechos, no diseño.
+  Produce hechos, no diseño.
 - **Analyst** (LLM): lee el perfil y propone el modelo: hechos vs dimensiones, claves, tabla de
   fechas, medidas base (con DAX) y patrones (YTD, PY, variación). Escribe la sección `model` de
   `spec_lock.yaml`.
