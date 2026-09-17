@@ -1,8 +1,10 @@
 # PowerBI Generator — análisis de viabilidad y plan
 
-Fecha: 2026-09-17. Estado: revisado tras una ronda de auditoría cruzada (seis correcciones
-incorporadas: licencia, papel real de la CLI de Microsoft, formato por visual, plan B de
-capturas, unidad de entrega, entrada PBIX).
+Fecha: 2026-09-17. Estado: revisado tras dos rondas de auditoría cruzada. Ronda 1: licencia,
+papel real de la CLI de Microsoft, formato por visual, plan B de capturas, unidad de entrega,
+entrada PBIX. Ronda 2: etiquetas de confidencialidad, clases de artefacto y fuga de datos,
+definiciones de negocio y RLS en el brief, familia de Desktop soportada, perímetro v1 del emisor,
+separación diagnóstico/corrección en el modo revisar, evidencia por tipo de hallazgo, `doctor`.
 
 ## 0. Objetivo
 
@@ -18,12 +20,23 @@ modos de uso, con la identidad y las reglas del cliente cargadas como configurac
 No es una prueba personal. Eso impone requisitos desde el día uno:
 
 - **Instalable en cualquier máquina del equipo** con un comando, sin depender de plugins o rutas
-  de una máquina concreta. Prerrequisitos documentados y comprobados por un script (`doctor`).
+  de una máquina concreta. Un script `doctor` comprueba los prerrequisitos **verificables**:
+  familia de Desktop soportada (v1 = 2.157.x, no "2.157 o superior": los esquemas PBIR se
+  versionan y suben con cada release), puente local activo, Node y CLIs, ruta del workspace fuera
+  de OneDrive/SharePoint sincronizado y corta (límite de 260 caracteres en rutas PBIP), y fuentes
+  tipográficas de la identidad instaladas (las fuentes no viajan dentro del informe).
+- **Precondición de admisión del encargo:** PBIP no soporta etiquetas de confidencialidad. Un
+  cliente cuya política exija conservarlas durante el desarrollo no puede entrar en este flujo; se
+  comprueba antes de aceptar, no en la entrega.
 - **Licencias limpias** para uso comercial en todas las dependencias.
 - **Reproducible**: mismo spec y mismos datos, mismo resultado; el resultado se revisa en git.
 - **Documentado para quien no lo escribió**: un README de uso y un ejemplo completo que funcione.
-- **Sin secretos ni datos de cliente en el repo**: los proyectos generados viven fuera o en
-  `projects/` ignorado por git.
+- **Sin secretos ni datos de cliente en el repo, y no basta con `.gitignore`.** Tres clases de
+  artefacto con tratamiento distinto: (1) datos y caché, nunca versionados ni empaquetados
+  (`sources/`, `.pbi/cache.abf`, que contiene una copia del modelo con datos); (2) PBIR y
+  bookmarks, versionables pero **portadores potenciales de valores reales** (selecciones de
+  filtros y slicers), que pasan por un escaneo antes de commit o entrega; (3) TMDL, tema y spec,
+  seguros. El empaquetado de entrega es una lista blanca, no una copia recursiva de la carpeta.
 
 ## 1. Veredicto
 
@@ -47,7 +60,7 @@ especificación confirmada antes de generar, contrato máquina, validación dete
 cambia por ser Power BI:
 
 | Principio | En PowerBI Generator |
-|---|---|
+| --- | --- |
 | Pipeline serial por roles con gates | Analyst → Strategist → Executor → QA |
 | Narrativa + contrato máquina | `report_spec.md` (para personas) + `spec_lock.yaml` (para el código) |
 | Confirmación bloqueante antes de generar | Único gate humano obligatorio: el usuario aprueba modelo e informe propuestos |
@@ -60,7 +73,7 @@ cambia por ser Power BI:
 ## 3. Inventario de lo que ya existe en la máquina (verificado)
 
 | Pieza | Estado | Uso previsto |
-|---|---|---|
+| --- | --- | --- |
 | Power BI Desktop 2.157 (Store) | Instalado. Puente local **apagado** (hay que activar la preview y reiniciar) | Render + motor DAX local |
 | Python 3.14 + pandas + duckdb + jsonschema | Instalado | Perfilado de datos, generadores, validación |
 | `pbir` CLI (data-goblin) | Evaluado y **desinstalado**. Licencia "Custom Non-Commercial": la cláusula 3 nombra expresamente "prestar servicios de consultoría o desarrollo de pago" como uso comercial | **No se usa en ninguna fase.** Ver riesgo L1 |
@@ -79,10 +92,12 @@ una vez por cliente y se reutiliza en todos sus proyectos; el modo (`crear` / `r
 qué bloques son obligatorios:
 
 | Bloque | Qué contiene | A qué alimenta |
-|---|---|---|
+| --- | --- | --- |
 | **Empresa / identidad** | Nombre del cliente o equipo; paquete de marca: logo(s), paleta, tipografías, idioma, formato de fecha/moneda. Se guarda como `templates/brands/<empresa>/` reutilizable entre proyectos | Tema JSON de Power BI, cabeceras de página, locale del modelo |
 | **Orígenes de datos** | Ficheros locales (CSV/XLSX/Parquet) en fases 0-3; SQL, Lakehouse o Direct Lake en fase 4. Ruta por parámetro, nunca absoluta en el modelo | Perfilado, partitions M del modelo |
 | **Objetivos** | Audiencia, preguntas de negocio a responder, KPIs prioritarios, decisiones que debe apoyar el informe | Analyst (qué medidas) y Strategist (qué páginas y visuales) |
+| **Definiciones de negocio** | Definición exacta de cada KPI, grano de negocio (qué es una fila válida), reglas de exclusión, cortes temporales (año fiscal, cierre), salvedades conocidas de los datos. El perfilado descubre tipos y claves, **no** qué significa una venta válida | Analyst; se cierra **antes** del gate, porque cambiarlo después rehace medidas, dimensiones y tests |
+| **Seguridad** | Requisitos de seguridad a nivel de fila (RLS): roles, criterio de filtrado, tablas afectadas. Forma parte del modelo y condiciona relaciones | Analyst (roles en TMDL) y tests DAX por rol |
 | **Restricciones** | Número máximo de páginas, visuales permitidos o vetados, accesibilidad, nivel de detalle, destino (local / workspace) | Strategist y QA |
 | **Ejemplos de referencia** | Opcional: PBIP existente o capturas de informes que gustan al cliente | Strategist, como referencia de estilo |
 | **Objeto a revisar** (modo revisar) | Ruta al PBIP del cliente y alcance: solo diagnóstico, o diagnóstico + correcciones; qué está fuera de alcance | Auditor y, si procede, Executor sobre el PBIP existente |
@@ -143,7 +158,15 @@ brief + datos → [1] Perfilado → [2] Analyst: propuesta de modelo (estrella, 
 1. **Modelo "thick" local en fases 0-3** (PBIP con `.SemanticModel` en modo import leyendo ficheros
    locales por parámetro de ruta). Sin Fabric ni licencias hasta la fase 4.
 2. **El LLM nunca escribe `visual.json` ni TMDL a mano.** Escribe `spec_lock.yaml`; el código
-   escribe ficheros. Si el generador no cubre algo, se amplía el generador.
+   escribe ficheros. Si el generador no cubre algo, se amplía el generador **entre fases, no
+   durante una fase**. El perímetro de la v1 del emisor queda congelado antes de la Fase 1:
+   `textbox`, `cardVisual`, `lineChart`, `clusteredColumnChart`/`clusteredBarChart`,
+   `pivotTable` (matriz) y `slicer` (lista y rango); bindings a columna y medida; posición,
+   ordenación, ejes, leyenda, etiquetas, colores por serie, cabeceras de matriz, configuración de
+   slicer, texto, tema y los objetos de contenedor. Fuera de v1: bookmarks, drillthrough, mapas,
+   parámetros de campo, visuales personalizados, navegación. Los identificadores de página y
+   visual se derivan de forma determinista del spec (hash de nombre), nunca aleatorios, para que
+   dos generaciones iguales den diffs vacíos.
 3. **Tema primero, formato por visual cuando no hay otra opción.** La identidad va al tema JSON y
    los visuales llevan por defecto solo campos y posición. Pero hay propiedades de contenedor
    (`visualContainerObjects`: fondo, borde, padding, cabecera, y varias de cards) que la cascada de
@@ -189,23 +212,34 @@ Objetivo: comprobar a mano los dos puntos que lo pueden tumbar todo.
   detalle tabla).
 - Criterio: un dataset tipo ventas (3 CSV) → informe de 3 páginas sin tocar JSON a mano.
 
-### Fase 2b — Modo revisar (en paralelo a la Fase 2; no depende del emisor)
+### Fase 2b — Modo revisar, solo diagnóstico (en paralelo a la Fase 2; no depende del emisor)
 
 - Lector de PBIP existente (TMDL + PBIR) → inventario: tablas, medidas, relaciones, páginas,
   visuales, campos usados y huérfanos.
-- Comprobaciones deterministas: reglas de buenas prácticas de modelo (Tabular Editor BPA),
-  validación PBIR con la CLI de Microsoft, solapes y visuales sin datos, cumplimiento del tema
-  del cliente, medidas sin formato ni descripción.
-- Capturas por página con el puente de Desktop y revisión guiada por LLM.
+- Comprobaciones estáticas: reglas de buenas prácticas de modelo (Tabular Editor BPA),
+  validación PBIR con la CLI de Microsoft, **cada binding de PBIR apunta a una tabla, columna o
+  medida que existe en TMDL** (una referencia rota sobrevive a la validación de esquema), solapes,
+  cumplimiento del tema del cliente, medidas sin formato ni descripción, riesgos estáticos de
+  rendimiento (cardinalidad, columnas calculadas, medidas con patrones caros).
+- Evidencia en ejecución, con el PBIP abierto en Desktop: capturas por página (visuales vacíos,
+  truncados, ilegibles) y **medición** de tiempo de consulta por visual vía DAX contra el motor
+  local. Sin medición no se afirma "este visual tarda demasiado".
 - Salida: informe de auditoría (Markdown/Word con la plantilla del cliente) con hallazgos
-  priorizados por consecuencia. Las correcciones se aplican solo si están en el alcance del brief.
-- Criterio: auditar un PBIP real de un cliente y que el informe no contenga ningún hallazgo que
-  no se pueda señalar con fichero y línea.
+  priorizados por consecuencia. Cada hallazgo lleva la evidencia que le corresponde: fichero y
+  ubicación estructural para lo estático, captura para lo visual, medición para lo de ejecución.
+- Criterio: auditar un PBIP real de un cliente y que ningún hallazgo carezca de evidencia de su
+  tipo.
+- **Las correcciones no van aquí.** Aplicar cambios a un PBIP ajeno exige o bien el emisor (solo
+  para construcciones del subconjunto soportado) o bien operaciones de parche que preserven lo
+  que el generador no entiende. Eso pertenece a la Fase 3.
 
 ### Fase 3 — Roles LLM y experiencia
 
 - Skill de Claude Code para el equipo con el flujo Analyst → Strategist (confirmación en chat o
   en una página local) → Executor → QA con revisión de capturas.
+- Modo revisar con correcciones: catálogo cerrado de operaciones de parche sobre un PBIP ajeno
+  (cambiar tema, añadir descripción y formato a medidas, corregir un binding roto, añadir una
+  página generada) que preservan byte a byte lo que no tocan. Nada de reescribir el PBIP entero.
 - Entrada = PBIP existente ("re-tematizar", "auditar", "añadir página"). Un PBIX **no** es entrada
   automatizable: Microsoft no permite convertir PBIX↔PBIP por programa, solo con *Guardar como* en
   Desktop. La precondición documentada para PBIX es convertirlo antes a PBIP.
@@ -220,12 +254,16 @@ Objetivo: comprobar a mano los dos puntos que lo pueden tumbar todo.
 ## 6. Riesgos y decisiones abiertas
 
 | # | Riesgo | Impacto | Mitigación |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | L1 | `pbir-cli` es no comercial y su licencia cuenta la consultoría de pago como uso comercial | Legal | Excluido de todas las fases, incluido el spike. Base: CLIs MIT de Microsoft (catálogo + validación + puente Desktop) + JSON Schema oficial + emisor propio |
 | T1 | El puente de Desktop es preview y puede fallar por políticas de la máquina corporativa | Sin bucle visual local | Se prueba en Fase 0; plan B = publicar + export API |
 | T2 | PBIR y el propio guardado PBIP siguen marcados *preview* en la documentación (17-sep-2026); el esquema puede cambiar entre versiones de Desktop | Regeneraciones rotas | Fijar versión de esquema en `spec_lock`; validar contra el JSON Schema de la versión instalada |
 | T3 | Rutas absolutas en M para ficheros locales | PBIP no portable | Parámetro `DataFolder` en el modelo; el generador lo rellena |
 | T4 | Solo Windows (Desktop) | Sin CI en Linux | Aceptado en local; la fase 4 desacopla con Fabric |
+| T5 | Dos consultores con versiones distintas de Desktop: los esquemas PBIR y de tema se versionan por release; no hay matriz oficial de compatibilidad hacia atrás | Un PBIP validado en una máquina falla o se ve distinto en otra | `doctor` exige la familia soportada (v1: 2.157.x); el spec registra la versión de esquema con la que se generó |
+| T6 | Rutas largas (límite 260) y carpetas sincronizadas con OneDrive/SharePoint rompen el guardado de PBIP; fuentes no instaladas cambian el render | Falla en una máquina y no en otra | `doctor` valida ubicación y fuentes de la identidad |
+| C1 | PBIP no soporta etiquetas de confidencialidad | Encargo inviable si el cliente las exige durante el desarrollo | Precondición de admisión (§0) |
+| D1 | PBIR y bookmarks pueden contener valores reales (filtros, slicers); `.pbi/cache.abf` contiene datos | Fuga de datos de cliente por commit o por empaquetado recursivo | Clases de artefacto (§0), escaneo previo a commit/entrega, empaquetado por lista blanca |
 | P1 | Plugins registrados pero no cargados (`plugins/cache` ausente) | Se pierde conocimiento ya instalado | Reinstalar antes de la Fase 0 |
 
 **Decisiones que tomar antes de la Fase 1:** (a) Node + CLIs de Microsoft como base, sí/no;
