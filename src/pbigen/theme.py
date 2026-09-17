@@ -91,6 +91,9 @@ def _theme_body(brand: Brand) -> dict:
                     "background": [{"show": True, "color": {"solid": {"color": c.background}}, "transparency": 0}],
                     "border": [{"show": True, "color": {"solid": {"color": "#E1DFDD"}}, "radius": brand.card_radius}],
                     "visualHeader": [{"show": True}],
+                    # Los títulos de eje repiten lo que ya dice el título del visual y se truncan
+                    "categoryAxis": [{"showAxisTitle": False, "gridlineShow": False}],
+                    "valueAxis": [{"showAxisTitle": False, "gridlineStyle": "dotted"}],
                 }
             },
             "page": {"*": {"background": [{"color": {"solid": {"color": "#F5F5F5"}}, "transparency": 0}]}},

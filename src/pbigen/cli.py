@@ -199,6 +199,22 @@ def open_(project_dir: Path) -> None:
     _ok(f"abriendo {pbip} con {d.launch_exe}")
 
 
+def _last_json_object(text: str) -> dict:
+    """Último objeto JSON de una salida que puede llevar varios (la CLI imprime status y resultado)."""
+    import json
+
+    start = len(text)
+    while True:
+        start = text.rfind("{", 0, start)
+        if start < 0:
+            return {}
+        if start == 0 or text[start - 1] in "\r\n":
+            try:
+                return json.loads(text[start:])
+            except json.JSONDecodeError:
+                pass
+
+
 def _desktop_pids_with(cfg, pbip: Path) -> list[int]:  # type: ignore[no-untyped-def]
     """PIDs de Desktop (según el puente) que tienen abierto exactamente este .pbip."""
     import json
@@ -236,13 +252,43 @@ def query(project_dir: Path, dax: str) -> None:
 
 
 @app.command()
-def screenshot(project_dir: Path, out_dir: Path | None = None) -> None:
-    """Captura todas las páginas vía el puente de Desktop (el informe debe estar abierto)."""
+def reload(project_dir: Path) -> None:
+    """Recarga en Desktop la definición del informe desde disco (puente). Para cambios de modelo usa `open`."""
     cfg = load_config()
+    spec = load_spec(project_dir / "spec_lock.yaml")
+    pbip = (project_dir / "pbip" / f"{spec.project}.pbip").resolve()
+    pids = _desktop_pids_with(cfg, pbip)
+    if not pids:
+        _bad("ninguna instancia de Desktop tiene abierto este PBIP; ejecuta `pbigen open`")
+        raise typer.Exit(code=1)
+    r = run_cli(cfg.tools_path, "powerbi-desktop", "reload", "--pid", str(pids[0]))
+    typer.echo((r.stdout or r.stderr).strip()[-300:])
+    raise typer.Exit(code=r.returncode)
+
+
+@app.command()
+def screenshot(
+    project_dir: Path,
+    out_dir: Path | None = None,
+    settle_ms: int = typer.Option(4000, help="Espera antes de capturar, para que los visuales terminen de renderizar"),
+) -> None:
+    """Captura todas las páginas vía el puente de Desktop (el informe debe estar abierto)."""
+    import json
+
+    cfg = load_config()
+    spec = load_spec(project_dir / "spec_lock.yaml")
     out = (out_dir or project_dir / "screenshots").resolve()
     out.mkdir(parents=True, exist_ok=True)
-    st = run_cli(cfg.tools_path, "powerbi-desktop", "status")
-    typer.echo(st.stdout.strip() or st.stderr.strip())
-    r = run_cli(cfg.tools_path, "powerbi-desktop", "screenshot-all", "--output-dir", str(out))
-    typer.echo((r.stdout or r.stderr).strip())
-    raise typer.Exit(code=r.returncode)
+    pids = _desktop_pids_with(cfg, (project_dir / "pbip" / f"{spec.project}.pbip").resolve())
+    args = ["screenshot-all", "--output-dir", str(out), "--settle", str(settle_ms)]
+    if pids:
+        args += ["--pid", str(pids[0])]
+    r = run_cli(cfg.tools_path, "powerbi-desktop", *args)
+    data = _last_json_object((r.stdout or "").strip())
+    for s in data.get("screenshots", []):
+        _ok(f"{s.get('pageDisplayName')}: {s.get('outputPath')}")
+    if data.get("status") != "ok":
+        _bad((data.get("error", {}).get("message") if data else text[-600:]) or "captura fallida")
+        for f in (data.get("error", {}).get("details", {}) or {}).get("failures", []):
+            typer.echo(f"  {f.get('pageDisplayName')}: {f.get('error', {}).get('message')}")
+        raise typer.Exit(code=1)

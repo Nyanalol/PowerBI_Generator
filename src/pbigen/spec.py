@@ -183,6 +183,7 @@ class VisualSpec(StrictModel):
     category: str | None = None
     values: list[str] = []
     series: str | None = None
+    sort: Literal["auto", "category", "value"] = "auto"  # auto: categoría si es temporal, valor si no
     # matrix
     rows: list[str] = []
     columns: list[str] = []

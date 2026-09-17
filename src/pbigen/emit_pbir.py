@@ -67,6 +67,18 @@ def _sort(spec: SpecLock, ref: str, direction: str) -> dict:
     return {"sort": [{"field": _field(spec, ref), "direction": direction}], "isDefaultSort": True}
 
 
+def _is_temporal(spec: SpecLock, ref: str) -> bool:
+    """Una categoría es temporal si pertenece a la tabla de fechas o es de tipo dateTime."""
+    r = FieldRef.parse(ref)
+    dt = spec.model.date_table
+    if dt and r.table == dt.name:
+        return True
+    for t in spec.model.tables:
+        if t.name == r.table:
+            return any(c.name == r.prop and c.type == "dateTime" for c in t.columns)
+    return False
+
+
 def _container_objects(v: VisualSpec) -> dict:
     objs: dict = {}
     if v.title:
@@ -106,7 +118,8 @@ def visual_json(spec: SpecLock, page: PageSpec, v: VisualSpec, z: int) -> dict:
         qs = {"Category": _role(spec, [v.category or ""], active_first=True), "Y": _role(spec, v.values)}
         if v.series:
             qs["Series"] = _role(spec, [v.series])
-        sort = _sort(spec, v.category or "", "Ascending") if v.type == "line" else _sort(spec, v.values[0], "Descending")
+        by_category = v.sort == "category" or (v.sort == "auto" and (v.type == "line" or _is_temporal(spec, v.category or "")))
+        sort = _sort(spec, v.category or "", "Ascending") if by_category else _sort(spec, v.values[0], "Descending")
         visual["query"] = {"queryState": qs, "sortDefinition": sort}
         visual["drillFilterOtherVisuals"] = True
     elif v.type == "matrix":
@@ -117,13 +130,21 @@ def visual_json(spec: SpecLock, page: PageSpec, v: VisualSpec, z: int) -> dict:
         visual["drillFilterOtherVisuals"] = True
     elif v.type == "slicer":
         visual["query"] = {"queryState": {"Values": _role(spec, [v.field or ""])}}
+        objects: dict = {}
         if v.mode == "dropdown":
-            visual["objects"] = {"data": [{"properties": {"mode": _literal("'Dropdown'")}}]}
+            objects["data"] = [{"properties": {"mode": _literal("'Dropdown'")}}]
+        if v.title:
+            # El slicer ya tiene cabecera propia: el título va ahí, no en el contenedor (evita duplicarlo)
+            objects["header"] = [{"properties": {"show": _literal("true"), "text": _literal(f"'{v.title}'")}}]
+        if objects:
+            visual["objects"] = objects
+        visual["visualContainerObjects"] = {"title": [{"properties": {"show": _literal("false")}}]}
     else:  # pragma: no cover - el modelo pydantic ya lo impide
         raise ValueError(f"tipo de visual no soportado por el emisor: {v.type}")
-    objs = _container_objects(v)
-    if objs:
-        visual.setdefault("visualContainerObjects", {}).update(objs)
+    if v.type != "slicer":
+        objs = _container_objects(v)
+        if objs:
+            visual.setdefault("visualContainerObjects", {}).update(objs)
     doc["visual"] = visual
     return doc
 

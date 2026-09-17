@@ -75,7 +75,7 @@ def test_check_detects_broken_binding_and_overlap(project: Path) -> None:
 
 
 def test_daxtest_helpers_normalize_and_compare(project: Path) -> None:
-    assert len(load_tests(project)) == 9
+    assert len(load_tests(project)) == 10
     assert _norm("1,234.5") == 1234.5 and _norm("2025-01-01 00:00:00") == "2025-01-01T00:00:00"
     assert _rows_equal([("Norte", 10.001)], [("Norte", 10.0)], tol=0.005)
     assert not _rows_equal([("Norte", 10.1)], [("Norte", 10.0)], tol=0.005)

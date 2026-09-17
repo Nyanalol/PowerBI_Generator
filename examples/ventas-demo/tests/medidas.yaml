@@ -35,3 +35,8 @@
 - name: ticket medio
   dax: EVALUATE ROW("v", [Ticket Medio])
   sql: SELECT SUM(Importe) / COUNT(*) FROM Ventas
+
+- name: crecimiento anual = 2025 vs 2024 (sin filtro temporal)
+  dax: EVALUATE ROW("v", [Crecimiento Anual %])
+  sql: SELECT (SUM(CASE WHEN YEAR(Fecha)=2025 THEN Importe END) - SUM(CASE WHEN YEAR(Fecha)=2024 THEN Importe END)) / SUM(CASE WHEN YEAR(Fecha)=2024 THEN Importe END) FROM Ventas
+  tolerance: 0.0001

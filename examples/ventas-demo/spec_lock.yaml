@@ -36,6 +36,9 @@ model:
         - { name: Importe PY, dax: "CALCULATE([Importe Total], SAMEPERIODLASTYEAR(Fechas[Fecha]))", format: "#,##0 €", description: Importe del mismo periodo del año anterior, folder: Importe }
         - { name: Var % vs PY, dax: "DIVIDE([Importe Total] - [Importe PY], [Importe PY])", format: "0.0%", description: Variación porcentual frente al año anterior, folder: Importe }
         - { name: Ticket Medio, dax: "DIVIDE([Importe Total], COUNTROWS(Ventas))", format: "#,##0.00 €", description: Importe medio por línea de venta, folder: Importe }
+        - { name: Importe Último Año, dax: "CALCULATE([Importe Total], Fechas[Año] = MAX(Fechas[Año]))", format: "#,##0 €", description: Importe del último año con datos en el contexto, folder: Importe }
+        - { name: Importe Año Previo, dax: "CALCULATE([Importe Total], Fechas[Año] = MAX(Fechas[Año]) - 1)", format: "#,##0 €", description: Importe del año anterior al último con datos, folder: Importe }
+        - { name: Crecimiento Anual %, dax: "DIVIDE([Importe Último Año] - [Importe Año Previo], [Importe Año Previo])", format: "0.0%", description: Variación del último año frente al anterior; válida sin filtro temporal, folder: Importe }
 
     - name: Productos
       description: Catálogo de productos
@@ -63,14 +66,14 @@ report:
         - { type: textbox, name: titulo, text: "Ventas — resumen ejecutivo", font_size_pt: 22, grid: { col: 0, row: 0, cols: 8, rows: 1 } }
         - { type: slicer, name: f_anio, field: "Fechas[Año]", mode: dropdown, title: Año, grid: { col: 8, row: 0, cols: 2, rows: 1 } }
         - { type: slicer, name: f_region, field: "Clientes[Region]", mode: dropdown, title: Región, grid: { col: 10, row: 0, cols: 2, rows: 1 } }
-        - { type: card, name: kpi_importe, measure: "Ventas[Importe Total]", title: Importe total, grid: { col: 0, row: 1, cols: 3, rows: 1 } }
-        - { type: card, name: kpi_ytd, measure: "Ventas[Importe YTD]", title: Importe YTD, grid: { col: 3, row: 1, cols: 3, rows: 1 } }
-        - { type: card, name: kpi_var, measure: "Ventas[Var % vs PY]", title: Variación vs año anterior, grid: { col: 6, row: 1, cols: 3, rows: 1 } }
-        - { type: card, name: kpi_unidades, measure: "Ventas[Unidades Totales]", title: Unidades, grid: { col: 9, row: 1, cols: 3, rows: 1 } }
-        - { type: line, name: tendencia, title: Importe mensual, category: "Fechas[AñoMes]", values: ["Ventas[Importe Total]", "Ventas[Importe PY]"], grid: { col: 0, row: 2, cols: 8, rows: 3 } }
-        - { type: bar, name: por_region, title: Importe por región, category: "Clientes[Region]", values: ["Ventas[Importe Total]"], grid: { col: 8, row: 2, cols: 4, rows: 3 } }
-        - { type: column, name: por_categoria, title: Importe por categoría, category: "Productos[Categoria]", values: ["Ventas[Importe Total]"], grid: { col: 0, row: 5, cols: 6, rows: 3 } }
-        - { type: column, name: por_producto, title: Unidades por producto, category: "Productos[Producto]", values: ["Ventas[Unidades Totales]"], grid: { col: 6, row: 5, cols: 6, rows: 3 } }
+        - { type: card, name: kpi_importe, measure: "Ventas[Importe Total]", title: Importe total, grid: { col: 0, row: 1, cols: 3, rows: 2 } }
+        - { type: card, name: kpi_ytd, measure: "Ventas[Importe YTD]", title: Importe YTD, grid: { col: 3, row: 1, cols: 3, rows: 2 } }
+        - { type: card, name: kpi_var, measure: "Ventas[Crecimiento Anual %]", title: Crecimiento último año, grid: { col: 6, row: 1, cols: 3, rows: 2 } }
+        - { type: card, name: kpi_unidades, measure: "Ventas[Unidades Totales]", title: Unidades, grid: { col: 9, row: 1, cols: 3, rows: 2 } }
+        - { type: line, name: tendencia, title: Importe mensual, category: "Fechas[AñoMes]", values: ["Ventas[Importe Total]", "Ventas[Importe PY]"], grid: { col: 0, row: 3, cols: 8, rows: 3 } }
+        - { type: bar, name: por_region, title: Importe por región, category: "Clientes[Region]", values: ["Ventas[Importe Total]"], grid: { col: 8, row: 3, cols: 4, rows: 3 } }
+        - { type: column, name: por_categoria, title: Importe por categoría, category: "Productos[Categoria]", values: ["Ventas[Importe Total]"], grid: { col: 0, row: 6, cols: 6, rows: 2 } }
+        - { type: column, name: por_producto, title: Unidades por producto, category: "Productos[Producto]", values: ["Ventas[Unidades Totales]"], grid: { col: 6, row: 6, cols: 6, rows: 2 } }
 
     - name: Tendencia
       visuals:

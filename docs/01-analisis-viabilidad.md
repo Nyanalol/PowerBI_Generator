@@ -266,6 +266,28 @@ el puente PowerShell del motor (las tildes de los valores DAX llegaban mal codif
   detalle tabla).
 - Criterio: un Excel sintético de ventas (3 hojas: ventas, productos, clientes) → informe de 3 páginas sin tocar JSON a mano.
 
+**Resultado (2026-09-17): Fase 2 completada.** Excel de tres hojas y dos años → estrella con
+tabla de fechas calculada y marcada, tres relaciones, medidas de time intelligence (YTD, PY,
+crecimiento anual), tres páginas sobre rejilla 12×8 con textbox, tarjetas, líneas, columnas,
+barras, matriz y slicers, y tema generado desde `templates/brands/demo/brand.yaml`. Validación
+de Microsoft en verde, `check` sin hallazgos, 10 de 10 tests DAX contra duckdb (incluidos YTD a
+una fecha, PY de un mes y crecimiento 2025 vs 2024), capturas de las tres páginas revisadas.
+Lo aprendido, ya incorporado al código o a `check`:
+
+- El `name` interno del tema debe ser igual al nombre del fichero, y Desktop cachea temas por
+  nombre: el fichero lleva sufijo hash del contenido. Sin `$schema`, como los temas de Desktop.
+- Un slicer desplegable con cabecera necesita 76 px; de ahí la rejilla de 8 filas (79 px). Una
+  tarjeta con título y callout de 32 pt necesita unos 120 px o muestra un esqueleto de guiones
+  (`check` avisa: `CARD_TOO_SHORT`).
+- El slicer ya tiene cabecera: el título va ahí, no en el contenedor (si no, sale duplicado).
+- Categorías temporales se ordenan por categoría; el resto por valor (`sort: auto`).
+- Un cambio de modelo (TMDL) no se aplica con `reload` del puente: `open` cierra y reabre la
+  instancia que tenga el PBIP. Tras reabrir, el puente puede responder "Report view is not
+  active" hasta el primer `reload`. Las capturas necesitan unos segundos de asentamiento.
+- Hallazgo de analista, no de código: "Variación vs año anterior" sin filtro temporal comparaba
+  dos años contra uno (109,8 %). Es el tipo de error que el rol Data Analyst de la Fase 3 debe
+  detectar; de momento la tarjeta usa `Crecimiento Anual %` (último año contra el previo).
+
 ### Fase 2b — Modo revisar, solo diagnóstico (en paralelo a la Fase 2; no depende del emisor)
 
 - Lector de PBIP existente (TMDL + PBIR) → inventario: tablas, medidas, relaciones, páginas,
@@ -291,6 +313,21 @@ el puente PowerShell del motor (las tildes de los valores DAX llegaban mal codif
 
 - Skill de Claude Code para el equipo con el flujo Analyst → Strategist (confirmación en chat o
   en una página local) → Executor → QA con revisión de capturas.
+- **Rol Data Analyst** (añadido 2026-09-17): antes de proponer páginas, se pone la gorra de
+  analista y genera ideas de informe a partir del perfil y el brief: qué preguntas responde cada
+  página, qué KPIs merecen tarjeta, qué comparaciones aportan (tendencia, año contra año,
+  ranking, concentración, variación), qué dinámica conviene (slicers, parámetros de campo para
+  cambiar medida o dimensión cuando hay varias candidatas, drill), y qué destacar (formato
+  condicional, líneas de referencia). Elige el visual por la pregunta, no por costumbre; reparte
+  la densidad (una página no puede ir recargada mientras otra va vacía) y aplica la rejilla. Sus
+  propuestas se presentan al usuario y, confirmadas, se traducen a `spec_lock.yaml`.
+- **Buenas prácticas de M y DAX como criterio de calidad**, no como sugerencia: plegado de
+  consultas y tipos fijados en M; medidas sobre columnas base, variables, `DIVIDE`, sin columnas
+  calculadas donde valga una medida, sin `FILTER` sobre tablas enteras, tablas de fechas
+  marcadas, claves ocultas, formato y descripción en toda medida. Se comprueban con las reglas
+  BPA de Tabular Editor y con `check`, y las que sean medibles (tiempo por consulta) con `test`.
+- Perímetro v2 del emisor para servir a ese rol: parámetros de campo, formato condicional,
+  líneas de referencia, tooltips, filtros de página; siempre entre fases, nunca a mitad.
 - Modo revisar con correcciones: catálogo cerrado de operaciones de parche sobre un PBIP ajeno
   (cambiar tema, añadir descripción y formato a medidas, corregir un binding roto, añadir una
   página generada) que preservan byte a byte lo que no tocan. Nada de reescribir el PBIP entero.

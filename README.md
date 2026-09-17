@@ -4,7 +4,10 @@ Generador de proyectos Power BI (PBIP: modelo semántico TMDL + informe PBIR) pa
 equipo de consultoría: pipeline por roles, especificación confirmada antes de generar,
 generación determinista y control de calidad (validación, tests DAX, capturas) antes de entregar.
 
-Estado: Fases 0 y 1 completadas (init → profile → build → validate → check → Desktop → refresh → test DAX → captura, todo por comando). Ver [docs/01-analisis-viabilidad.md](docs/01-analisis-viabilidad.md) para
+Estado: Fases 0, 1 y 2 completadas. Desde un Excel y un `spec_lock.yaml` se genera un proyecto con
+estrella, tabla de fechas, time intelligence, tres páginas y tema de cliente; se valida, se abre en
+Desktop, se cargan los datos, se prueban las medidas por DAX contra duckdb y se capturan las páginas,
+todo por comando. Ver [docs/01-analisis-viabilidad.md](docs/01-analisis-viabilidad.md) para
 el análisis, las decisiones y el plan por fases, y [CLAUDE.md](CLAUDE.md) para las reglas de
 trabajo en el repositorio.
 

@@ -48,6 +48,7 @@ uv run pbigen build examples/ventas-demo         # -> examples/ventas-demo/pbip/
 uv run pbigen validate examples/ventas-demo      # pydantic + powerbi-report-author validate
 uv run pbigen check examples/ventas-demo         # bindings↔TMDL, lienzo, solapes, medidas sin formato/descripción
 uv run pbigen open examples/ventas-demo          # abre en Power BI Desktop (alias de la Store)
+uv run pbigen reload examples/ventas-demo        # recarga el informe en Desktop (solo cambios de informe; el modelo exige open)
 uv run pbigen refresh examples/ventas-demo       # carga los datos en el modelo abierto (TMSL vía ADOMD)
 uv run pbigen query examples/ventas-demo 'EVALUATE ROW("t", [Importe Total])'   # DAX contra el motor local
 uv run pbigen test examples/ventas-demo          # tests/*.yaml: DAX contra Desktop vs SQL duckdb sobre sources/
@@ -72,8 +73,10 @@ src/pbigen/
   profile.py     perfilado de orígenes -> analysis/data_profile.json
   check.py       comprobaciones estáticas sobre pbip/ (bindings, lienzo, solapes, medidas)
   daxtest.py     tests DAX con duckdb como oráculo
+  theme.py       brand.yaml -> tema JSON de Power BI
   demo_data.py   Excel sintético
-  resources/     tema base copiado de Desktop
+  resources/     tema base copiado de Desktop, engine.ps1
+templates/brands/<id>/brand.yaml   identidad por cliente (colores, tipografía)
 examples/        proyectos de ejemplo (solo spec_lock.yaml versionado)
 docs/            análisis, decisiones, plan por fases
 tests/           pytest; los tests llaman al código de producción, no a copias

@@ -78,6 +78,11 @@ def check_report(report_dir: Path, semantic_model_dir: Path | None) -> list[Find
             x, y, w, h = pos.get("x", 0), pos.get("y", 0), pos.get("width", 0), pos.get("height", 0)
             if x < 0 or y < 0 or x + w > width or y + h > height:
                 findings.append(Finding("error", "VISUAL_OUT_OF_CANVAS", f"visual fuera del lienzo {width}x{height}: ({x},{y},{w},{h})", rel))
+            vtype = v.get("visual", {}).get("visualType")
+            if vtype == "cardVisual" and h < 120:
+                # Comprobado en Desktop 2.157: con título y callout de 32 pt, por debajo de ~120 px la
+                # tarjeta no muestra el valor (queda un esqueleto de guiones).
+                findings.append(Finding("warning", "CARD_TOO_SHORT", f"tarjeta de {h:.0f} px de alto; con título necesita >= 120 px para mostrar el valor", rel))
             rects.append((rel, x, y, w, h))
             if model is not None:
                 for kind, entity, prop in _walk_fields(v.get("visual", {})):
