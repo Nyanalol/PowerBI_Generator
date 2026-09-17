@@ -105,7 +105,7 @@ report:
         - { type: card, name: kpi_beneficio, measure: "Pedidos[Beneficio]", title: Beneficio, accent: positive, grid: { col: 6, row: 2, cols: 3, rows: 3 } }
         - { type: card, name: kpi_ventas, measure: "Pedidos[Ventas]", title: Ventas, accent: primary, grid: { col: 9, row: 2, cols: 3, rows: 3 } }
         - { type: bar, name: beneficio_subcategoria, title: Beneficio por subcategoría, category: "Productos[Subcategoría]", values: ["Pedidos[Beneficio]"], sort_direction: asc, color_measure: "Pedidos[Color Beneficio]", grid: { col: 0, row: 5, cols: 5, rows: 11 } }
-        - { type: column, name: beneficio_descuento, title: Beneficio según el descuento aplicado, category: "Pedidos[Descuento]", values: ["Pedidos[Beneficio]"], sort: category, accent: warning, grid: { col: 5, row: 5, cols: 7, rows: 6 } }
+        - { type: scatter, name: descuento_margen, title: "Descuento medio frente a margen por subcategoría", category: "Productos[Subcategoría]", x_measure: "Pedidos[Descuento Medio]", values: ["Pedidos[Margen %]"], size_measure: "Pedidos[Ventas]", accent: warning, grid: { col: 5, row: 5, cols: 7, rows: 6 } }
         - { type: matrix, name: tabla, title: Ventas y margen por categoría, rows: ["Productos[Categoría]", "Productos[Subcategoría]"], values: ["Pedidos[Ventas]", "Pedidos[Beneficio]", "Pedidos[Margen %]", "Pedidos[Descuento Medio]"], grid: { col: 5, row: 11, cols: 7, rows: 5 } }
 
     - name: Clientes
@@ -121,7 +121,7 @@ report:
         - { type: card, name: kpi_ventas, measure: "Pedidos[Ventas]", title: Ventas, accent: primary, grid: { col: 9, row: 2, cols: 3, rows: 3 } }
         - { type: matrix, name: tabla, title: Ventas y margen por cliente, rows: ["Clientes[Segmento]", "Clientes[Cliente]"], values: ["Pedidos[Ventas]", "Pedidos[Nº Pedidos]", "Pedidos[Beneficio]", "Pedidos[Margen %]"], grid: { col: 0, row: 5, cols: 7, rows: 6 } }
         - { type: bar, name: clientes_region, title: Clientes activos por región, category: "Pedidos[Región]", values: ["Pedidos[Clientes Activos]"], accent: secondary, data_labels: true, grid: { col: 7, row: 5, cols: 5, rows: 6 } }
-        - { type: bar, name: ventas_segmento, title: Ventas por segmento, category: "Clientes[Segmento]", values: ["Pedidos[Ventas]"], accent: primary, data_labels: true, grid: { col: 0, row: 11, cols: 4, rows: 5 } }
+        - { type: bar, name: top_clientes, title: "Top 10 clientes por ventas", category: "Clientes[Cliente]", values: ["Pedidos[Ventas]"], accent: primary, data_labels: true, top_n: { n: 10, by: "Pedidos[Venta Línea]", agg: sum }, grid: { col: 0, row: 11, cols: 4, rows: 5 } }
         - { type: column, name: pedidos_mes, title: Pedidos por mes y año, category: "Fechas[Mes]", series: "Fechas[Año]", values: ["Pedidos[Nº Pedidos]"], grid: { col: 4, row: 11, cols: 8, rows: 5 } }
 
     - name: Operaciones

@@ -15,7 +15,7 @@ from pathlib import Path
 
 from .ids import hex_id
 from .platform_file import write_platform
-from .spec import FieldRef, PageSpec, SpecLock, VisualSpec
+from .spec import FieldRef, FilterSpec, PageSpec, SpecLock, TopNSpec, VisualSpec
 from .theme import accent_colors, build_theme, load_brand
 
 SCHEMA_BASE = "https://developer.microsoft.com/json-schemas/fabric"
@@ -33,6 +33,11 @@ BASE_THEME = "CY26SU08"  # copiado de Power BI Desktop 2.157; ver resources/base
 _VISUAL_TYPES = {
     "shape": "shape",
     "card": "cardVisual",
+    "table": "tableEx",
+    "donut": "donutChart",
+    "treemap": "treemap",
+    "waterfall": "waterfallChart",
+    "scatter": "scatterChart",
     "line": "lineChart",
     "column": "clusteredColumnChart",
     "bar": "clusteredBarChart",
@@ -91,6 +96,123 @@ def _is_temporal(spec: SpecLock, ref: str) -> bool:
         if t.name == r.table:
             return any(c.name == r.prop and c.type == "dateTime" for c in t.columns)
     return False
+
+
+def _filter_name(*parts: str) -> str:
+    return "Filter" + hex_id(*parts, length=24)
+
+
+def _literal_value(value: object) -> dict:
+    if isinstance(value, bool):
+        return {"Literal": {"Value": "true" if value else "false"}}
+    if isinstance(value, int):
+        return {"Literal": {"Value": f"{value}L"}}
+    if isinstance(value, float):
+        return {"Literal": {"Value": f"{value}D"}}
+    return {"Literal": {"Value": "'" + str(value).replace("'", "''") + "'"}}
+
+
+def _categorical_filter(spec: SpecLock, f: FilterSpec, scope: str) -> dict:
+    """Filtro fijo por lista de valores. En `Where` la fuente es el alias de `From`, no la entidad."""
+    ref = FieldRef.parse(f.field)
+    alias = "f"
+    column = {"Column": {"Expression": {"SourceRef": {"Source": alias}}, "Property": ref.prop}}
+    condition: dict = {"In": {"Expressions": [column], "Values": [[_literal_value(v)] for v in f.values]}}
+    if f.exclude:
+        condition = {"Not": {"Expression": condition}}
+    return {
+        "name": _filter_name(scope, f.field, *(str(v) for v in f.values)),
+        "field": _field(spec, f.field),
+        "type": "Categorical",
+        "filter": {
+            "Version": 2,
+            "From": [{"Name": alias, "Entity": ref.table, "Type": 0}],
+            "Where": [{"Condition": condition}],
+        },
+        "howCreated": "User",
+    }
+
+
+_AGG_FUNCTIONS = {"sum": 0, "count": 5}
+
+
+def _top_n_filter(spec: SpecLock, v: VisualSpec, t: TopNSpec) -> dict:
+    """Top N de la categoría del visual.
+
+    Dos restricciones del motor, comprobadas en Desktop 2.157: el `OrderBy` del subconsulta debe
+    ser una agregación sobre columna (una medida da error), y cada tabla implicada necesita su
+    propia entrada en `From` con su alias. Si la columna de orden vive en otra tabla que la
+    categoría (lo normal: categoría en la dimensión, importe en el hecho), hacen falta dos.
+    """
+    cat = FieldRef.parse(v.category or "")
+    by = FieldRef.parse(t.by)
+    cat_alias = "c"
+    by_alias = cat_alias if by.table == cat.table else "m"
+    sources = [{"Name": cat_alias, "Entity": cat.table, "Type": 0}]
+    if by_alias != cat_alias:
+        sources.append({"Name": by_alias, "Entity": by.table, "Type": 0})
+    return {
+        "name": _filter_name("topn", v.name, v.category or "", t.by),
+        "field": _field(spec, v.category or ""),
+        "type": "TopN",
+        "filter": {
+            "Version": 2,
+            "From": [
+                {
+                    "Name": "subquery",
+                    "Expression": {
+                        "Subquery": {
+                            "Query": {
+                                "Version": 2,
+                                "From": sources,
+                                "Select": [
+                                    {
+                                        "Column": {
+                                            "Expression": {"SourceRef": {"Source": cat_alias}},
+                                            "Property": cat.prop,
+                                        },
+                                        "Name": "field",
+                                    }
+                                ],
+                                "OrderBy": [
+                                    {
+                                        "Direction": 2 if t.direction == "top" else 1,
+                                        "Expression": {
+                                            "Aggregation": {
+                                                "Expression": {
+                                                    "Column": {
+                                                        "Expression": {"SourceRef": {"Source": by_alias}},
+                                                        "Property": by.prop,
+                                                    }
+                                                },
+                                                "Function": _AGG_FUNCTIONS[t.agg],
+                                            }
+                                        },
+                                    }
+                                ],
+                                "Top": t.n,
+                            }
+                        }
+                    },
+                    "Type": 2,
+                },
+                {"Name": cat_alias, "Entity": cat.table, "Type": 0},
+            ],
+            "Where": [
+                {
+                    "Condition": {
+                        "In": {
+                            "Expressions": [
+                                {"Column": {"Expression": {"SourceRef": {"Source": cat_alias}}, "Property": cat.prop}}
+                            ],
+                            "Table": {"SourceRef": {"Source": "subquery"}},
+                        }
+                    }
+                }
+            ],
+        },
+        "howCreated": "User",
+    }
 
 
 def _container_objects(v: VisualSpec) -> dict:
@@ -272,6 +394,33 @@ def visual_json(
             chart_objects["dataPoint"] = [{"properties": {"defaultColor": _fill(accent_hex)}}]
         if chart_objects:
             visual["objects"] = chart_objects
+    elif v.type == "table":
+        refs = list(v.rows) + list(v.values)
+        visual["query"] = {"queryState": {"Values": _role(spec, refs, active_first=True)}}
+        visual["drillFilterOtherVisuals"] = True
+    elif v.type in ("donut", "treemap"):
+        role = "Category" if v.type == "donut" else "Group"
+        visual["query"] = {
+            "queryState": {role: _role(spec, [v.category or ""], active_first=True), "Values" if v.type == "treemap" else "Y": _role(spec, v.values)},
+            "sortDefinition": _sort(spec, v.values[0], "Descending"),
+        }
+        visual["drillFilterOtherVisuals"] = True
+    elif v.type == "waterfall":
+        qs = {"Category": _role(spec, [v.category or ""], active_first=True), "Y": _role(spec, v.values)}
+        if v.series:
+            qs["Breakdown"] = _role(spec, [v.series])
+        visual["query"] = {"queryState": qs}
+        visual["drillFilterOtherVisuals"] = True
+    elif v.type == "scatter":
+        qs = {
+            "Category": _role(spec, [v.category or ""], active_first=True),
+            "X": _role(spec, [v.x_measure or ""]),
+            "Y": _role(spec, v.values),
+        }
+        if v.size_measure:
+            qs["Size"] = _role(spec, [v.size_measure])
+        visual["query"] = {"queryState": qs}
+        visual["drillFilterOtherVisuals"] = True
     elif v.type == "matrix":
         qs = {"Rows": _role(spec, v.rows, active_first=True), "Values": _role(spec, v.values)}
         if v.columns:
@@ -296,11 +445,13 @@ def visual_json(
         if objs:
             visual.setdefault("visualContainerObjects", {}).update(objs)
     doc["visual"] = visual
+    if v.top_n:
+        doc["filterConfig"] = {"filters": [_top_n_filter(spec, v, v.top_n)]}
     return doc
 
 
 def page_json(spec: SpecLock, page: PageSpec) -> dict:
-    return {
+    doc = {
         "$schema": S_PAGE,
         "name": hex_id(spec.project, page.name),
         "displayName": page.shown_name,
@@ -308,9 +459,12 @@ def page_json(spec: SpecLock, page: PageSpec) -> dict:
         "height": page.height,
         "width": page.width,
     }
+    if page.filters:
+        doc["filterConfig"] = {"filters": [_categorical_filter(spec, f, f"page:{page.name}") for f in page.filters]}
+    return doc
 
 
-def report_json(custom_theme: str | None) -> dict:
+def report_json(custom_theme: str | None, spec: SpecLock | None = None) -> dict:
     doc: dict = {
         "$schema": S_REPORT,
         "themeCollection": {
@@ -321,6 +475,8 @@ def report_json(custom_theme: str | None) -> dict:
         ],
         "settings": {"useStylableVisualContainerHeader": True, "defaultDrillFilterOtherVisuals": True, "useEnhancedTooltips": True},
     }
+    if spec is not None and spec.report.filters:
+        doc["filterConfig"] = {"filters": [_categorical_filter(spec, f, "report") for f in spec.report.filters]}
     if custom_theme:
         doc["themeCollection"]["customTheme"] = {"name": custom_theme, "reportVersionAtImport": VERSION_AT_IMPORT, "type": "RegisteredResources"}
         doc["resourcePackages"].append(
@@ -361,7 +517,7 @@ def write_report(spec: SpecLock, out_dir: Path) -> Path:
         card_value, card_label = brand.fonts.callout_size, brand.fonts.label_size + 1
         custom_theme, tdoc = build_theme(brand)
         _dump(rp / "StaticResources" / "RegisteredResources" / custom_theme, tdoc)
-    _dump(d / "report.json", report_json(custom_theme))
+    _dump(d / "report.json", report_json(custom_theme, spec))
 
     accents = accent_colors(brand)
     page_ids = [hex_id(spec.project, p.name) for p in spec.report.pages]

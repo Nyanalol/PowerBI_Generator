@@ -70,6 +70,25 @@ Cada visual declara su `accent`:
 Pendiente de emisor v2, y por eso hoy se anota en la entrega: colorear una barra negativa distinto
 de una positiva dentro del mismo gráfico (formato condicional por regla).
 
+## Qué visual usa cada pregunta (perímetro v2)
+
+| Pregunta | Visual | Cuándo |
+|---|---|---|
+| ¿Cuánto, en una cifra? | `card` | 4 o 5 por página, arriba |
+| ¿Cómo evoluciona? | `line` | Hasta 24 puntos en el eje |
+| ¿Cómo se reparte? | `bar` | Etiquetas largas, ranking; con `top_n` si hay muchas categorías |
+| ¿Cómo compara entre periodos? | `column` con `series` | Mes en categoría, año en serie |
+| ¿Qué peso tiene cada parte del total? | `donut` | 3 a 5 categorías, nunca más |
+| ¿Cómo se reparte una jerarquía por tamaño? | `treemap` | Muchas categorías de tamaño muy distinto |
+| ¿De dónde a dónde va el total? | `waterfall` | Descomposición de una variación |
+| ¿Hay relación entre dos medidas? | `scatter` | Dos medidas y una categoría; el tamaño, una tercera |
+| ¿Dónde está el detalle? | `matrix` | Jerarquía en filas |
+| ¿Y la lista plana? | `table` | Detalle sin jerarquía |
+
+Un ranking con más categorías de las que caben lleva `top_n` (los N primeros por una columna
+agregada), no un scroll. Lo que acota el informe entero va en `report.filters`; lo que acota una
+página, en `filters` de la página: ocupan cero lienzo, a diferencia de un segmentador.
+
 ## Retícula y jerarquía (medidas fijas)
 
 Lienzo 1280x720, retícula de 12 columnas por 16 filas, margen 16 px y separación 8 px: la columna

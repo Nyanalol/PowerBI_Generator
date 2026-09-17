@@ -29,6 +29,8 @@ model:
         - { name: Importe Total, dax: "SUM(Hecho[Importe])", format: "#,##0 €", description: ..., folder: Importe }
 report:
   theme: { brand: demo }                            # templates/brands/<id>/brand.yaml; omitir = tema base
+  filters:                                          # alcance de todo el informe, sin gastar lienzo
+    - { field: "Dim[Pais]", values: ["España"] }    # `exclude: true` para invertirlo
   pages:
     - name: Resumen                                 # nombre estable; display_name opcional
       visuals:
@@ -39,7 +41,21 @@ report:
         - { type: bar, name: por_region, title: ..., category: "Dim[Region]", values: ["Hecho[Importe Total]"], grid: {...} }
         - { type: column, name: por_mes, title: ..., category: "Fechas[Mes]", series: "Fechas[Año]", values: [...], sort: category, grid: {...} }
         - { type: matrix, name: tabla, title: ..., rows: ["Dim[Region]", "Dim[Cliente]"], columns: ["Dim2[Categoria]"], values: [...], grid: {...} }
+        - { type: table, name: lista, title: ..., rows: ["Dim[Cliente]"], values: [...], grid: {...} }
+        - { type: donut, name: reparto, title: ..., category: "Dim[Segmento]", values: [...], grid: {...} }
+        - { type: treemap, name: peso, title: ..., category: "Dim[Producto]", values: [...], grid: {...} }
+        - { type: waterfall, name: puente, title: ..., category: "Fechas[Mes]", values: [...], grid: {...} }
+        - { type: scatter, name: relacion, title: ..., category: "Dim[Producto]", x_measure: "Hecho[Descuento Medio]", values: ["Hecho[Margen %]"], size_measure: "Hecho[Ventas]", grid: {...} }
+        - { type: shape, name: acento, accent: primary, x: 16, y: 18, w: 4, h: 44 }   # barra de la cabecera
+      # filtros de página: acotan sin ocupar lienzo
+      filters:
+        - { field: "Fechas[Año]", values: [2025] }
 ```
+
+Extras del perímetro v2: `top_n: { n, by, agg, direction }` en un ranking (el `by` es una columna
+numérica, no una medida: lo exige el motor), `color_measure` para colorear por una medida DAX que
+devuelve un HEX, `accent` semántico, `data_labels`, `emphasis` en el KPI principal y `subtitle` y
+`style: banner` en el cuadro de texto del título.
 
 Reglas duras que el validador del spec impone: `measure` y `values` son medidas; `category`,
 `series`, `field`, `rows`, `columns` son columnas; toda referencia `Tabla[Campo]` debe existir;

@@ -207,3 +207,82 @@ def test_date_table_has_quarter_axis_and_sort_direction(project: Path) -> None:
     )
     doc = visual_json(spec, page, v, z=1000)
     assert doc["visual"]["query"]["sortDefinition"]["sort"][0]["direction"] == "Ascending"
+
+
+def test_v2_filters_topn_and_new_visual_types(project: Path) -> None:
+    """Emisor v2: filtros de página e informe, Top N por visual y los tipos nuevos."""
+    import yaml
+
+    from pbigen.emit_pbir import page_json, report_json, visual_json
+    from pbigen.spec import GridPos, SpecLock, TopNSpec, VisualSpec
+
+    raw = yaml.safe_load((project / "spec_lock.yaml").read_text(encoding="utf-8"))
+    raw["report"]["filters"] = [{"field": "Clientes[Segmento]", "values": ["Empresa"]}]
+    raw["report"]["pages"][0]["filters"] = [{"field": "Productos[Categoria]", "values": ["Equipos"], "exclude": True}]
+    spec = SpecLock.model_validate(raw)
+
+    rep = report_json(None, spec)
+    f = rep["filterConfig"]["filters"][0]
+    assert f["type"] == "Categorical" and f["howCreated"] == "User"
+    assert f["field"]["Column"]["Expression"]["SourceRef"]["Entity"] == "Clientes"
+    # dentro de Where la fuente es el alias, no la entidad (lo exige el validador de Microsoft)
+    assert f["filter"]["Where"][0]["Condition"]["In"]["Expressions"][0]["Column"]["Expression"]["SourceRef"] == {"Source": "f"}
+
+    pg = page_json(spec, spec.report.pages[0])
+    cond = pg["filterConfig"]["filters"][0]["filter"]["Where"][0]["Condition"]
+    assert "Not" in cond, "exclude debe negar la condición"
+
+    page = spec.report.pages[0]
+    v = VisualSpec(
+        type="bar",
+        name="top",
+        category="Productos[Producto]",
+        values=["Ventas[Importe Total]"],
+        top_n=TopNSpec(n=5, by="Ventas[Importe]", agg="sum"),
+        grid=GridPos(col=0, row=0, cols=4, rows=4),
+    )
+    doc = visual_json(spec, page, v, z=1000)
+    tn = doc["filterConfig"]["filters"][0]
+    assert tn["type"] == "TopN" and tn["filter"]["From"][0]["Expression"]["Subquery"]["Query"]["Top"] == 5
+    order = tn["filter"]["From"][0]["Expression"]["Subquery"]["Query"]["OrderBy"][0]
+    assert order["Direction"] == 2 and "Aggregation" in order["Expression"], "el orden usa agregación, no medida"
+
+    for vtype, kwargs, expected, role in [
+        ("donut", {"category": "Productos[Producto]", "values": ["Ventas[Importe Total]"]}, "donutChart", "Category"),
+        ("treemap", {"category": "Productos[Producto]", "values": ["Ventas[Importe Total]"]}, "treemap", "Group"),
+        ("waterfall", {"category": "Fechas[Mes]", "values": ["Ventas[Importe Total]"]}, "waterfallChart", "Category"),
+        ("table", {"rows": ["Productos[Producto]"], "values": ["Ventas[Importe Total]"]}, "tableEx", "Values"),
+        (
+            "scatter",
+            {"category": "Productos[Producto]", "x_measure": "Ventas[Importe Total]", "values": ["Ventas[Unidades Totales]"]},
+            "scatterChart",
+            "X",
+        ),
+    ]:
+        v = VisualSpec(type=vtype, name=f"v_{vtype}", grid=GridPos(col=0, row=0, cols=4, rows=4), **kwargs)
+        doc = visual_json(spec, page, v, z=1000)
+        assert doc["visual"]["visualType"] == expected
+        assert role in doc["visual"]["query"]["queryState"]
+
+
+def test_topn_uses_one_alias_per_table(project: Path) -> None:
+    """Categoría en la dimensión y columna de orden en el hecho: cada tabla necesita su alias, o
+    Desktop responde "The visual has unrecognized fields"."""
+    from pbigen.emit_pbir import visual_json
+    from pbigen.spec import GridPos, TopNSpec, VisualSpec
+
+    spec = load_spec(project / "spec_lock.yaml")
+    v = VisualSpec(
+        type="bar",
+        name="top_clientes",
+        category="Clientes[Cliente]",
+        values=["Ventas[Importe Total]"],
+        top_n=TopNSpec(n=10, by="Ventas[Importe]", agg="sum"),
+        grid=GridPos(col=0, row=0, cols=4, rows=4),
+    )
+    q = visual_json(spec, spec.report.pages[0], v, z=1000)["filterConfig"]["filters"][0]["filter"]
+    sub = q["From"][0]["Expression"]["Subquery"]["Query"]
+    aliases = {src["Name"]: src["Entity"] for src in sub["From"]}
+    assert aliases == {"c": "Clientes", "m": "Ventas"}
+    assert sub["Select"][0]["Column"]["Expression"]["SourceRef"]["Source"] == "c"
+    assert sub["OrderBy"][0]["Expression"]["Aggregation"]["Expression"]["Column"]["Expression"]["SourceRef"]["Source"] == "m"

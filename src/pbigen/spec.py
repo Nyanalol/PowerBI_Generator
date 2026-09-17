@@ -18,7 +18,10 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 DataType = Literal["string", "int64", "double", "decimal", "dateTime", "boolean"]
 Summarize = Literal["none", "sum", "count", "min", "max", "average"]
-VisualType = Literal["textbox", "card", "line", "column", "bar", "matrix", "slicer", "shape"]
+VisualType = Literal[
+    "textbox", "card", "line", "column", "bar", "matrix", "slicer", "shape",
+    "table", "donut", "treemap", "waterfall", "scatter",
+]
 
 CANVAS_W, CANVAS_H = 1280, 720
 # 12 columnas x 16 filas: fila de 35,5 px. Da las bandas que pide el diseño sin decimales raros:
@@ -159,6 +162,27 @@ class ModelSpec(StrictModel):
 # ----------------------------------------------------------------------------- informe
 
 
+class TopNSpec(StrictModel):
+    """Los N primeros (o últimos) de la categoría del visual, ordenados por una columna agregada.
+
+    Power BI solo admite Top N como filtro de visual, y el orden debe ser una agregación sobre una
+    columna (no una medida): es una restricción del motor, no del generador.
+    """
+
+    n: int = Field(ge=1, le=100)
+    by: str  # columna numérica: Tabla[Columna]
+    agg: Literal["sum", "count"] = "sum"
+    direction: Literal["top", "bottom"] = "top"
+
+
+class FilterSpec(StrictModel):
+    """Filtro fijo de página o de informe. Acota el alcance sin gastar lienzo en un slicer."""
+
+    field: str  # Tabla[Columna]
+    values: list[str | int | float] = Field(min_length=1)
+    exclude: bool = False
+
+
 class GridPos(StrictModel):
     col: int = Field(ge=0, lt=GRID_COLS)
     row: int = Field(ge=0, lt=GRID_ROWS)
@@ -215,6 +239,11 @@ class VisualSpec(StrictModel):
     accent: Literal["primary", "secondary", "positive", "negative", "warning", "neutral"] | None = None
     # Medida DAX que devuelve un color (#RRGGBB) por punto: formato condicional de verdad
     color_measure: str | None = None
+    # Los N primeros de la categoría: un ranking deja de ser una lista con scroll
+    top_n: TopNSpec | None = None
+    # table / donut / treemap / waterfall / scatter
+    x_measure: str | None = None  # scatter: medida del eje X (el eje Y es `values[0]`)
+    size_measure: str | None = None  # scatter: medida del tamaño de la burbuja
     # matrix
     rows: list[str] = []
     columns: list[str] = []
@@ -231,6 +260,11 @@ class VisualSpec(StrictModel):
         t = self.type
         need = {
             "shape": True,
+            "table": bool(self.values or self.rows),
+            "donut": bool(self.category and self.values),
+            "treemap": bool(self.category and self.values),
+            "waterfall": bool(self.category and self.values),
+            "scatter": bool(self.category and self.x_measure and self.values),
             "textbox": bool(self.text),
             "card": bool(self.measure),
             "line": bool(self.category and self.values),
@@ -248,7 +282,7 @@ class VisualSpec(StrictModel):
         return self
 
     def field_refs(self) -> list[str]:
-        refs = [r for r in (self.measure, self.category, self.series, self.field) if r]
+        refs = [r for r in (self.measure, self.category, self.series, self.field, self.x_measure, self.size_measure) if r]
         return refs + list(self.values) + list(self.rows) + list(self.columns)
 
     def measure_refs(self) -> list[str]:
@@ -266,6 +300,7 @@ class PageSpec(StrictModel):
     display_name: str | None = None
     width: int = CANVAS_W
     height: int = CANVAS_H
+    filters: list[FilterSpec] = []
     visuals: list[VisualSpec] = []
 
     @property
@@ -287,6 +322,7 @@ class ThemeSpec(StrictModel):
 class ReportSpec(StrictModel):
     pages: list[PageSpec] = Field(min_length=1)
     theme: ThemeSpec = ThemeSpec()
+    filters: list[FilterSpec] = []  # alcance de todo el informe
 
 
 # ----------------------------------------------------------------------------- raíz
@@ -362,14 +398,24 @@ class SpecLock(StrictModel):
             for side in (rel.from_, rel.to):
                 if self.field_kind(side) != "Column":
                     raise ValueError(f"relación {rel.from_} -> {rel.to}: {side} debe ser una columna")
+        for f in self.report.filters:
+            if self.field_kind(f.field) != "Column":
+                raise ValueError(f"filtro de informe {f.field}: debe ser una columna")
         for p in self.report.pages:
+            for f in p.filters:
+                if self.field_kind(f.field) != "Column":
+                    raise ValueError(f"página {p.name!r}: el filtro {f.field} debe ser una columna")
             for v in p.visuals:
+                if v.top_n and self.field_kind(v.top_n.by) != "Column":
+                    raise ValueError(f"visual {v.name!r}: `top_n.by` debe ser una columna numérica: {v.top_n.by}")
                 for ref in v.field_refs() + ([v.color_measure] if v.color_measure else []):
                     kind = self.field_kind(ref)
                     if ref == v.color_measure and kind != "Measure":
                         raise ValueError(f"visual {v.name!r}: `color_measure` debe ser una medida: {ref}")
                     if ref == v.measure and kind != "Measure":
                         raise ValueError(f"visual {v.name!r}: `measure` debe ser una medida: {ref}")
+                    if ref in (v.x_measure, v.size_measure) and kind != "Measure":
+                        raise ValueError(f"visual {v.name!r}: {ref} debe ser una medida")
                     if ref in v.values and kind != "Measure":
                         raise ValueError(f"visual {v.name!r}: `values` deben ser medidas: {ref}")
                     if ref in (v.category, v.series, v.field) or ref in v.rows or ref in v.columns:

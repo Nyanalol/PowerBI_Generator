@@ -371,6 +371,14 @@ cifra grande. Los fallos de emisor que destapó el dataset real (comillas en rel
 identificadores M con guion, nombres de medida que chocan con tablas o columnas) están en
 `docs/02-errores-conocidos.md` con su test de regresión.
 
+**Emisor v2, primera entrega (2026-09-17).** Implementado y probado contra el dataset real:
+filtros de informe y de página (acotan sin gastar lienzo), **Top N** por visual (un ranking deja de
+ser una lista con scroll), color condicional por medida DAX, y cinco tipos de visual nuevos:
+tabla, anillo, treemap, cascada y dispersión. La dispersión de descuento contra margen por
+subcategoría es el primer visual del informe que responde a una pregunta que antes no se podía
+hacer. Pendiente del v2: parámetros de campo, líneas de referencia, formato condicional en la
+matriz (fondo y barras de datos), roles RLS y visuales personalizados.
+
 ### Fase 4. Fabric
 
 - Adaptadores SQL, Lakehouse / Direct Lake y modelo semántico existente (informe thin).
