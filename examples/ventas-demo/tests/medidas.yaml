@@ -1,0 +1,20 @@
+# Tests DAX contra el modelo abierto en Desktop, con duckdb sobre el mismo Excel como oráculo.
+- name: importe total
+  dax: EVALUATE ROW("v", [Importe Total])
+  sql: SELECT SUM(Importe) FROM Ventas
+
+- name: unidades totales
+  dax: EVALUATE ROW("v", [Unidades Totales])
+  sql: SELECT SUM(Unidades) FROM Ventas
+
+- name: filas de la tabla
+  dax: EVALUATE ROW("n", COUNTROWS(Ventas))
+  sql: SELECT COUNT(*) FROM Ventas
+
+- name: importe por región
+  dax: EVALUATE SUMMARIZECOLUMNS(Ventas[Region], "Importe", [Importe Total])
+  sql: SELECT Region, SUM(Importe) FROM Ventas GROUP BY Region
+
+- name: importe por producto
+  dax: EVALUATE SUMMARIZECOLUMNS(Ventas[Producto], "Importe", [Importe Total])
+  sql: SELECT Producto, SUM(Importe) FROM Ventas GROUP BY Producto

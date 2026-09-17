@@ -246,6 +246,17 @@ página con las tarjetas renderizadas. Lo aprendido, ya incorporado al código:
   1 página), `generate_model.py`, `generate_report.py`, `quality_check.py` (esquema + campos).
 - Criterio: desde un Excel y un `spec_lock.yaml` escrito a mano, salir un PBIP que abre y se captura.
 
+**Resultado (2026-09-17): Fase 1 completada.** `pbigen init` crea el esqueleto con el brief
+(`project.yaml`, con clasificación de datos); `profile` escribe `analysis/data_profile.json`
+(tipos, cardinalidad, nulos, rangos, claves candidatas, sin filas salvo opt-in y nunca en
+proyectos confidenciales o personales); `check` verifica sobre la salida generada que cada
+binding del informe existe en el TMDL, los límites del lienzo, los solapes y las medidas sin
+formato o descripción; `test` ejecuta `tests/*.yaml` como DAX contra Desktop y SQL con duckdb
+sobre el mismo Excel (5 de 5 en el ejemplo, incluido un desglose por región); `purge` borra
+datos, salidas, capturas y caché conservando spec, brief y tests. Dos correcciones surgidas al
+ejecutarlo: detección de fechas en el perfil por tipo real de pandas, y salida UTF-8 forzada en
+el puente PowerShell del motor (las tildes de los valores DAX llegaban mal codificadas).
+
 ### Fase 2 — Modelo real y librerías
 
 - Estrella multi-tabla, tabla de fechas generada, relaciones, patrones de medidas (time intelligence).

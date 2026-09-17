@@ -9,6 +9,8 @@ param(
     [string]$Dax = ""
 )
 $ErrorActionPreference = "Stop"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
 try {
     Add-Type -Path $Dll
     if ($Port -eq 0) {

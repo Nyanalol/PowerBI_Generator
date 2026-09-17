@@ -41,13 +41,18 @@ ahí están las decisiones tomadas, sus razones y los riesgos aceptados.
 uv sync --extra dev
 uv run pbigen doctor [examples/ventas-demo]      # prerrequisitos verificables
 uv run pbigen install-tools                      # CLIs de Microsoft (npm, sin admin)
+uv run pbigen init projects/cliente-x            # esqueleto: project.yaml (brief), spec_lock.yaml, sources/, tests/
 uv run pbigen demo-data examples/ventas-demo     # Excel sintético en sources/
+uv run pbigen profile examples/ventas-demo       # hechos de los datos -> analysis/data_profile.json (sin filas)
 uv run pbigen build examples/ventas-demo         # -> examples/ventas-demo/pbip/
 uv run pbigen validate examples/ventas-demo      # pydantic + powerbi-report-author validate
+uv run pbigen check examples/ventas-demo         # bindings↔TMDL, lienzo, solapes, medidas sin formato/descripción
 uv run pbigen open examples/ventas-demo          # abre en Power BI Desktop (alias de la Store)
 uv run pbigen refresh examples/ventas-demo       # carga los datos en el modelo abierto (TMSL vía ADOMD)
 uv run pbigen query examples/ventas-demo 'EVALUATE ROW("t", [Importe Total])'   # DAX contra el motor local
+uv run pbigen test examples/ventas-demo          # tests/*.yaml: DAX contra Desktop vs SQL duckdb sobre sources/
 uv run pbigen screenshot examples/ventas-demo    # capturas vía puente (Desktop abierto)
+uv run pbigen purge examples/ventas-demo --yes   # borra datos, salidas, capturas y caché (conserva spec/brief/tests)
 uv run pytest
 ```
 
@@ -63,6 +68,10 @@ src/pbigen/
   doctor.py      prerrequisitos
   tools.py       Node (wheel), npm, CLIs de Microsoft, localización de Desktop
   engine.py      motor AS local de Desktop: catálogos, refresh TMSL, consultas DAX (ADOMD vía PowerShell)
+  project.py     init (brief project.yaml) y purge
+  profile.py     perfilado de orígenes -> analysis/data_profile.json
+  check.py       comprobaciones estáticas sobre pbip/ (bindings, lienzo, solapes, medidas)
+  daxtest.py     tests DAX con duckdb como oráculo
   demo_data.py   Excel sintético
   resources/     tema base copiado de Desktop
 examples/        proyectos de ejemplo (solo spec_lock.yaml versionado)

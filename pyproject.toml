@@ -15,6 +15,7 @@ dependencies = [
     "pandas>=2.2",
     "jsonschema>=4.22",
     "nodejs-wheel-binaries>=22",
+    "duckdb>=1.5.5",
 ]
 
 [project.scripts]

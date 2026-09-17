@@ -67,6 +67,85 @@ def install_tools() -> None:
         _ok(f"cliente ADOMD: {install_adomd(cfg.tools_path)}")
 
 
+@app.command()
+def init(project_dir: Path, name: str | None = typer.Option(None, help="Nombre del proyecto Power BI")) -> None:
+    """Crea el esqueleto de un proyecto: project.yaml (brief), spec_lock.yaml, sources/, tests/, analysis/."""
+    from .project import init_project
+
+    created = init_project(project_dir, name)
+    for p in created:
+        _ok(f"creado {p}")
+    if not created:
+        typer.echo("nada que crear: el proyecto ya existe")
+
+
+@app.command()
+def profile(
+    project_dir: Path,
+    sample_rows: int = typer.Option(0, help="Filas de muestra en el perfil (solo proyectos publica/interna)"),
+) -> None:
+    """Perfila los orígenes (tipos, cardinalidad, nulos, rangos, claves) -> analysis/data_profile.json."""
+    from .profile import profile_project
+    from .project import load_brief
+
+    spec = load_spec(project_dir / "spec_lock.yaml")
+    brief = load_brief(project_dir)
+    if sample_rows > 0 and brief.data_classification in ("confidencial", "personal"):
+        _bad(f"proyecto clasificado {brief.data_classification}: no se incluyen filas de muestra")
+        sample_rows = 0
+    out = profile_project(project_dir, spec, sample_rows)
+    _ok(f"perfil escrito en {out}")
+
+
+@app.command()
+def check(project_dir: Path) -> None:
+    """Comprobaciones estáticas sobre pbip/: bindings contra el modelo, lienzo, solapes, medidas."""
+    from .check import check_report
+
+    spec = load_spec(project_dir / "spec_lock.yaml")
+    rp = project_dir / "pbip" / f"{spec.project}.Report"
+    sm = project_dir / "pbip" / f"{spec.project}.SemanticModel"
+    if not rp.exists():
+        _bad(f"{rp} no existe; ejecuta `pbigen build`")
+        raise typer.Exit(code=1)
+    findings = check_report(rp, sm if sm.exists() else None)
+    for f in findings:
+        (_bad if f.severity == "error" else typer.echo)(f"{f.severity.upper():7} {f.code}: {f.message}  [{f.file}]")
+    errors = [f for f in findings if f.severity == "error"]
+    (_ok if not errors else _bad)(f"{len(findings)} hallazgos, {len(errors)} errores")
+    raise typer.Exit(code=1 if errors else 0)
+
+
+@app.command()
+def test(project_dir: Path) -> None:
+    """Ejecuta tests/*.yaml: DAX contra el modelo abierto en Desktop frente a SQL (duckdb) sobre los orígenes."""
+    from .daxtest import load_tests, run_tests
+
+    spec = load_spec(project_dir / "spec_lock.yaml")
+    cases = load_tests(project_dir)
+    if not cases:
+        _bad("no hay tests en tests/*.yaml")
+        raise typer.Exit(code=1)
+    cfg = load_config()
+    results = run_tests(project_dir, spec, cfg.tools_path, cases)
+    for r in results:
+        (_ok if r.passed else _bad)(f"{r.name}" + (f"  {r.detail}" if r.detail else ""))
+    failed = [r for r in results if not r.passed]
+    typer.echo(f"{len(results) - len(failed)}/{len(results)} tests pasan")
+    raise typer.Exit(code=1 if failed else 0)
+
+
+@app.command()
+def purge(project_dir: Path, yes: bool = typer.Option(False, "--yes", help="No pedir confirmación")) -> None:
+    """Borra datos, salidas, capturas, análisis y caché del proyecto (conserva spec, brief y tests)."""
+    from .project import PURGE_DIRS, purge_project
+
+    if not yes:
+        typer.confirm(f"Borrar {', '.join(PURGE_DIRS)} de {project_dir}?", abort=True)
+    for p in purge_project(project_dir):
+        _ok(f"borrado {p}")
+
+
 @app.command("demo-data")
 def demo_data(project_dir: Path, year: int = 2025) -> None:
     """Genera sources/ventas.xlsx sintético en el proyecto."""

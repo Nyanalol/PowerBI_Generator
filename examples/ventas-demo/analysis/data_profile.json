@@ -1,0 +1,86 @@
+{
+  "generated_at": "2026-09-17T09:46:03",
+  "sources": [
+    {
+      "id": "ventas_xlsx",
+      "type": "excel",
+      "path": "sources/ventas.xlsx",
+      "tables": [
+        {
+          "name": "Ventas",
+          "rows": 3267,
+          "columns": [
+            {
+              "name": "Fecha",
+              "pandas_dtype": "datetime64[us]",
+              "suggested_type": "dateTime",
+              "nulls": 0,
+              "distinct": 365,
+              "is_unique": false,
+              "min": "2025-01-01T00:00:00",
+              "max": "2025-12-31T00:00:00"
+            },
+            {
+              "name": "Producto",
+              "pandas_dtype": "str",
+              "suggested_type": "string",
+              "nulls": 0,
+              "distinct": 5,
+              "is_unique": false,
+              "values": [
+                "Portátil",
+                "Monitor",
+                "Teclado",
+                "Ratón",
+                "Docking"
+              ]
+            },
+            {
+              "name": "Region",
+              "pandas_dtype": "str",
+              "suggested_type": "string",
+              "nulls": 0,
+              "distinct": 5,
+              "is_unique": false,
+              "values": [
+                "Norte",
+                "Sur",
+                "Centro",
+                "Este",
+                "Oeste"
+              ]
+            },
+            {
+              "name": "Unidades",
+              "pandas_dtype": "int64",
+              "suggested_type": "int64",
+              "nulls": 0,
+              "distinct": 12,
+              "is_unique": false,
+              "min": 1,
+              "max": 12,
+              "sum": 20797,
+              "mean": 6.3658
+            },
+            {
+              "name": "Importe",
+              "pandas_dtype": "float64",
+              "suggested_type": "double",
+              "nulls": 0,
+              "distinct": 3229,
+              "is_unique": false,
+              "min": 22.63,
+              "max": 12463.36,
+              "sum": 6151060.63,
+              "mean": 1882.7856
+            }
+          ],
+          "candidate_keys": [],
+          "date_columns": [
+            "Fecha"
+          ]
+        }
+      ]
+    }
+  ]
+}
