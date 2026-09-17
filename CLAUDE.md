@@ -35,6 +35,12 @@ ahí están las decisiones tomadas, sus razones y los riesgos aceptados.
    no está terminado. Ante una afirmación sobre el formato, comprobarla con la CLI de validación o
    abriendo el resultado, no con memoria.
 
+## Flujo con roles
+
+Para generar un informe a partir de datos y un brief, usa la skill `pbigen` (`.claude/skills/pbigen/`):
+Analyst → Data Analyst → Strategist (gate) → Executor → QA. Sus referencias por rol son la fuente de
+las reglas de modelado, DAX, elección de visuales y revisión visual.
+
 ## Flujo de trabajo
 
 ```text

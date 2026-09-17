@@ -337,6 +337,15 @@ Lo aprendido, ya incorporado al código o a `check`:
 - Empaquetado para el equipo: instalación con un comando, `doctor` de prerrequisitos, ejemplo
   completo, guía de uso.
 
+**Resultado (2026-09-17): Fase 3, primera entrega.** Skill de equipo versionada en el repo
+(`.claude/skills/pbigen/`): `SKILL.md` con el pipeline serial y el gate, y referencias por rol
+(`analyst.md`: reglas de modelo y DAX; `data-analyst.md`: preguntas → visuales, densidad,
+destacados, qué queda para el emisor v2; `strategist.md`: contrato y formato del gate; `qa.md`:
+checklist visual con lo aprendido en las fases 0-2). `pbigen spec-schema` expone el JSON Schema
+del contrato para que el LLM no adivine. Pendiente en esta fase: página local de confirmación,
+emisor v2 (parámetros de campo, formato condicional, líneas de referencia, filtros de página,
+roles RLS) y empaquetado de entrega por lista blanca.
+
 ### Fase 4 — Fabric
 
 - Adaptadores SQL, Lakehouse / Direct Lake y modelo semántico existente (informe thin).

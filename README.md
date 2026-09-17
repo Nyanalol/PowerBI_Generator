@@ -4,7 +4,7 @@ Generador de proyectos Power BI (PBIP: modelo semántico TMDL + informe PBIR) pa
 equipo de consultoría: pipeline por roles, especificación confirmada antes de generar,
 generación determinista y control de calidad (validación, tests DAX, capturas) antes de entregar.
 
-Estado: Fases 0, 1 y 2 completadas. Desde un Excel y un `spec_lock.yaml` se genera un proyecto con
+Estado: Fases 0, 1 y 2 completadas; Fase 3 iniciada (skill de equipo en `.claude/skills/pbigen/`). Desde un Excel y un `spec_lock.yaml` se genera un proyecto con
 estrella, tabla de fechas, time intelligence, tres páginas y tema de cliente; se valida, se abre en
 Desktop, se cargan los datos, se prueban las medidas por DAX contra duckdb y se capturan las páginas,
 todo por comando. Ver [docs/01-analisis-viabilidad.md](docs/01-analisis-viabilidad.md) para
@@ -35,6 +35,13 @@ uv run pbigen query examples/ventas-demo 'EVALUATE ROW("t", [Importe Total])'
 uv run pbigen test examples/ventas-demo
 uv run pbigen screenshot examples/ventas-demo
 ```
+
+## Uso con Claude Code
+
+Con el repo clonado, Claude Code carga la skill `pbigen` automáticamente. Pide, por ejemplo:
+"crea un informe Power BI con el Excel de sources/ para dirección comercial". La skill perfila los
+datos, propone modelo e informe, espera tu confirmación, genera, valida, abre en Desktop, prueba
+las medidas y revisa las capturas. Nunca escribe TMDL ni PBIR a mano.
 
 ## Autoría
 
