@@ -105,8 +105,8 @@ def open_(project_dir: Path) -> None:
     if d is None:
         _bad("Power BI Desktop no encontrado")
         raise typer.Exit(code=1)
-    subprocess.Popen([str(d.exe), str(pbip)])
-    _ok(f"abriendo {pbip} con {d.exe}")
+    subprocess.Popen([str(d.launch_exe), str(pbip)])
+    _ok(f"abriendo {pbip} con {d.launch_exe}")
 
 
 @app.command()

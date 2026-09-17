@@ -72,6 +72,11 @@ def run_cli(tools_dir: Path, name: str, *args: str, cwd: Path | None = None) -> 
 class DesktopInfo:
     exe: Path
     version: str  # p. ej. 2.157.1354.0
+    launcher: Path | None = None  # alias de la Store; el exe de WindowsApps no se puede lanzar directamente
+
+    @property
+    def launch_exe(self) -> Path:
+        return self.launcher or self.exe
 
 
 _STORE_RE = re.compile(r"Microsoft\.MicrosoftPowerBIDesktop_(\d+\.\d+\.\d+\.\d+)_")
@@ -83,12 +88,15 @@ def find_desktop(explicit: str | None = None) -> DesktopInfo | None:
         p = Path(explicit)
         return DesktopInfo(p, _file_version(p)) if p.exists() else None
     store_root = Path(os.environ.get("ProgramFiles", r"C:\Program Files")) / "WindowsApps"
+    alias = Path(os.environ.get("LOCALAPPDATA", "")) / "Microsoft" / "WindowsApps" / "PBIDesktopStore.exe"
     candidates: list[DesktopInfo] = []
     try:
         for d in store_root.iterdir():
             m = _STORE_RE.match(d.name)
             if m and (d / "bin" / "PBIDesktop.exe").exists():
-                candidates.append(DesktopInfo(d / "bin" / "PBIDesktop.exe", m.group(1)))
+                candidates.append(
+                    DesktopInfo(d / "bin" / "PBIDesktop.exe", m.group(1), alias if alias.exists() else None)
+                )
     except (PermissionError, FileNotFoundError):
         pass
     msi = Path(os.environ.get("ProgramFiles", r"C:\Program Files")) / "Microsoft Power BI Desktop" / "bin" / "PBIDesktop.exe"
