@@ -2,10 +2,24 @@
 
 Fecha: 2026-09-17. Estado: propuesta inicial, pendiente de auditoría cruzada.
 
+## 0. Objetivo
+
+Herramienta **productiva para el equipo y para trabajos futuros**: un consultor recibe datos y un
+brief de un cliente y obtiene un proyecto Power BI (modelo + informe) revisable, versionable y
+entregable, con calidad comprobada antes de enseñarlo. No es una prueba personal. Eso impone
+requisitos desde el día uno:
+
+- **Instalable en cualquier máquina del equipo** con un comando, sin depender de plugins o rutas
+  de una máquina concreta. Prerrequisitos documentados y comprobados por un script (`doctor`).
+- **Licencias limpias** para uso comercial en todas las dependencias.
+- **Reproducible**: mismo spec y mismos datos, mismo resultado; el resultado se revisa en git.
+- **Documentado para quien no lo escribió**: un README de uso y un ejemplo completo que funcione.
+- **Sin secretos ni datos de cliente en el repo**: los proyectos generados viven fuera o en
+  `projects/` ignorado por git.
+
 ## 1. Veredicto
 
-**Es factible, y está mejor posicionado de lo que estaba ppt-master al nacer.**
-Tres hechos verificados hoy lo sostienen:
+**Es factible.** Tres hechos verificados hoy lo sostienen:
 
 1. **El formato de salida es texto con esquema público.** Desde marzo de 2026 Power BI Desktop guarda
    por defecto en PBIR (informe: un JSON por página y por visual, con JSON Schema publicado por
@@ -13,24 +27,27 @@ Tres hechos verificados hoy lo sostienen:
    GA de PBIR prevista para Q3 2026.
 2. **Existe un renderizador local con puente para agentes.** Power BI Desktop 2.157 (instalado) expone
    una API local en preview ("external tool access") que permite recargar el informe desde disco y
-   sacar capturas PNG por página. Eso cierra el bucle generar → validar → mirar, que en ppt-master
-   resolvía el preview SVG en el navegador.
+   sacar capturas PNG por página. Eso cierra el bucle generar → validar → mirar sin publicar nada.
 3. **El modelo es comprobable, no solo mirable.** Con el informe abierto en Desktop se pueden lanzar
    consultas DAX contra el motor local (ADOMD). Un test de medidas es una consulta con resultado
-   esperado. Es una puerta de calidad que ppt-master no tiene.
+   esperado. Es una puerta de calidad objetiva que un generador de documentos no puede tener.
 
-## 2. Qué se hereda de ppt-master y qué NO
+## 2. Principios de diseño
 
-| Principio ppt-master | En PowerBI Generator |
+Se toma como referencia de destino el generador de presentaciones del equipo (pipeline por roles,
+especificación confirmada antes de generar, contrato máquina, validación determinista). Lo que
+cambia por ser Power BI:
+
+| Principio | En PowerBI Generator |
 |---|---|
-| Pipeline serial por roles con gates | **Se hereda.** Analyst → Strategist → Executor → QA |
-| `design_spec.md` (narrativa) + `spec_lock` (contrato máquina) | **Se hereda.** `report_spec.md` + `spec_lock.yaml` |
-| Confirmación bloqueante del Strategist antes de generar | **Se hereda.** Es el único gate humano obligatorio |
-| Librería de brands / layouts / charts | **Se hereda y se reutiliza.** Un brand de ppt-master se traduce a un tema JSON de Power BI |
-| Quality checker determinista antes de exportar | **Se hereda,** con más dientes: validación de esquema + tests DAX + capturas |
-| **El Executor escribe el SVG a mano, prohibido generar por script** | **Se invierte.** El visual.json es JSON estricto con cientos de propiedades; escribirlo a mano es el antipatrón que las dos librerías de skills (Microsoft y data-goblin) prohíben. Aquí el LLM escribe la *especificación* (modelo, DAX, layout) y un generador/CLI determinista escribe los ficheros |
-| Un artefacto (el deck) | **Dos artefactos acoplados:** modelo semántico (datos → estrella → DAX) e informe (páginas → visuales enlazados a campos del modelo). El informe no se puede diseñar sin el modelo |
-| Fuente = documento (PDF/DOCX) | **Fuente = datos + brief.** Hace falta un paso nuevo de *perfilado de datos* (tipos, cardinalidad, claves, rangos de fechas) que alimenta el diseño del modelo |
+| Pipeline serial por roles con gates | Analyst → Strategist → Executor → QA |
+| Narrativa + contrato máquina | `report_spec.md` (para personas) + `spec_lock.yaml` (para el código) |
+| Confirmación bloqueante antes de generar | Único gate humano obligatorio: el usuario aprueba modelo e informe propuestos |
+| Librería de identidades / plantillas | Identidad corporativa → tema JSON de Power BI; plantillas de página reutilizables |
+| Control de calidad determinista antes de entregar | Validación de esquema + tests DAX + capturas de pantalla revisadas |
+| **Quién escribe el artefacto final** | **El código, no el LLM.** El `visual.json` es JSON estricto con cientos de propiedades; escribirlo a mano es el antipatrón que las librerías de skills de Microsoft y data-goblin prohíben. El LLM escribe la *especificación* (modelo, DAX, layout) y un generador determinista escribe los ficheros |
+| Número de artefactos | **Dos, acoplados:** modelo semántico (datos → estrella → DAX) e informe (páginas → visuales enlazados a campos del modelo). El informe no se puede diseñar sin el modelo |
+| Fuente | **Datos + brief.** Hace falta un paso de *perfilado de datos* (tipos, cardinalidad, claves, rangos de fechas) que alimenta el diseño del modelo |
 
 ## 3. Inventario de lo que ya existe en la máquina (verificado)
 
@@ -48,7 +65,7 @@ Tres hechos verificados hoy lo sostienen:
 
 ### 4.1 Estructura de proyecto generado
 
-```
+```text
 projects/<nombre>/
   sources/            datos (CSV/XLSX/Parquet) + brief.md del usuario
   analysis/           data_profile.json  (hechos extraídos por script, no por el LLM)
@@ -63,7 +80,7 @@ projects/<nombre>/
 
 ### 4.2 Roles y pipeline
 
-```
+```text
 brief + datos → [1] Perfilado → [2] Analyst: propuesta de modelo (estrella, medidas)
              → [3] Strategist: propuesta de informe (páginas, visuales, tema)  ⛔ CONFIRMACIÓN
              → [4] Executor: genera TMDL + PBIR (scripts/CLI, no a mano)
@@ -77,7 +94,7 @@ brief + datos → [1] Perfilado → [2] Analyst: propuesta de modelo (estrella, 
   fechas, medidas base (con DAX) y patrones (YTD, PY, variación). Escribe la sección `model` de
   `spec_lock.yaml`.
 - **Strategist** (LLM): lee el brief + modelo y propone el informe. Escribe `report_spec.md` y la
-  sección `report` de `spec_lock.yaml`. Gate bloqueante, como en ppt-master.
+  sección `report` de `spec_lock.yaml`. Gate bloqueante.
 - **Executor** (scripts): `generate_model.py` (spec → TMDL vía plantillas Jinja) y
   `generate_report.py` (spec → PBIR vía CLI de Microsoft o generación directa validada contra
   el JSON Schema oficial). Determinista: mismo spec, mismos ficheros.
@@ -102,6 +119,7 @@ brief + datos → [1] Perfilado → [2] Analyst: propuesta de modelo (estrella, 
 ## 5. Plan por fases (de sencillo a complejo)
 
 ### Fase 0 — Spike de desriesgo (1 sesión)
+
 Objetivo: comprobar a mano los dos puntos que lo pueden tumbar todo.
 - Instalar Node + CLIs de Microsoft; activar el puente en Desktop.
 - Crear a mano (o con CLI) el PBIP mínimo: 1 CSV → 1 tabla import → 3 medidas → 1 página → 3 visuales.
@@ -111,24 +129,30 @@ Objetivo: comprobar a mano los dos puntos que lo pueden tumbar todo.
   exportar capturas tras publicar en un workspace; se decide aquí, no en la fase 3.
 
 ### Fase 1 — Esqueleto del generador
+
 - `project_manager.py init/validate`, `profile_data.py`, `spec_lock.yaml` v1 (una tabla, N medidas,
   1 página), `generate_model.py`, `generate_report.py`, `quality_check.py` (esquema + campos).
 - Criterio: desde un CSV y un `spec_lock.yaml` escrito a mano, salir un PBIP que abre y se captura.
 
 ### Fase 2 — Modelo real y librerías
+
 - Estrella multi-tabla, tabla de fechas generada, relaciones, patrones de medidas (time intelligence).
-- Multi-página, slicers, tema desde brand (reutilizar `templates/brands` de ppt-master).
+- Multi-página, slicers, tema desde identidad corporativa (librería propia de temas; se puede
+  arrancar importando las paletas ya definidas en el generador de presentaciones).
 - Tests DAX automáticos (duckdb como oráculo). Plantillas de página (overview ejecutivo, tendencia,
   detalle tabla).
 - Criterio: un dataset tipo ventas (3 CSV) → informe de 3 páginas sin tocar JSON a mano.
 
 ### Fase 3 — Roles LLM y experiencia
-- Skill `pbi-master` con el flujo Analyst → Strategist (confirmación, posible reutilización del
-  `confirm_ui` de ppt-master) → Executor → QA con revisión de capturas.
-- Entrada = PBIP/PBIX existente ("re-tematizar", "auditar", "añadir página"), equivalente al
-  beautify de ppt-master.
+
+- Skill de Claude Code para el equipo con el flujo Analyst → Strategist (confirmación en chat o
+  en una página local) → Executor → QA con revisión de capturas.
+- Entrada = PBIP/PBIX existente ("re-tematizar", "auditar", "añadir página").
+- Empaquetado para el equipo: instalación con un comando, `doctor` de prerrequisitos, ejemplo
+  completo, guía de uso.
 
 ### Fase 4 — Fabric
+
 - Despliegue con `fabric-cicd` o `fab`; fuentes Lakehouse / Direct Lake; capturas vía export API
   para máquinas sin Desktop; informes "thin" contra modelos publicados.
 
@@ -144,5 +168,5 @@ Objetivo: comprobar a mano los dos puntos que lo pueden tumbar todo.
 | P1 | Plugins registrados pero no cargados (`plugins/cache` ausente) | Se pierde conocimiento ya instalado | Reinstalar antes de la Fase 0 |
 
 **Decisiones que tomar antes de la Fase 1:** (a) Node + CLIs de Microsoft como base, sí/no;
-(b) formato del `spec_lock`: YAML (propuesto) frente a Markdown como ppt-master; (c) dataset de
+(b) formato del `spec_lock`: YAML (propuesto) frente a Markdown; (c) dataset de
 referencia para las fases 1-2 (propuesta: ventas sintéticas generadas por script, 3 CSV).
