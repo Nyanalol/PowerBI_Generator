@@ -18,13 +18,12 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 DataType = Literal["string", "int64", "double", "decimal", "dateTime", "boolean"]
 Summarize = Literal["none", "sum", "count", "min", "max", "average"]
-VisualType = Literal["textbox", "card", "line", "column", "bar", "matrix", "slicer"]
+VisualType = Literal["textbox", "card", "line", "column", "bar", "matrix", "slicer", "shape"]
 
 CANVAS_W, CANVAS_H = 1280, 720
-# 12 columnas x 12 filas: fila de 50 px. Con 8 filas la unidad mínima era 79 px y todo salía
-# demasiado alto (una tarjeta ocupaba 166 px para 80 px de contenido). Los elementos que necesitan
-# más alto piden dos filas: un slicer desplegable (76 px mínimo) o una tarjeta caben en 108 px.
-GRID_COLS, GRID_ROWS, GRID_MARGIN, GRID_GUTTER = 12, 12, 16, 8
+# 12 columnas x 16 filas: fila de 35,5 px. Da las bandas que pide el diseño sin decimales raros:
+# cabecera 2 filas (79 px), KPIs 3 (114 px), zona analítica principal 6 (249 px) y secundaria 5 (213 px).
+GRID_COLS, GRID_ROWS, GRID_MARGIN, GRID_GUTTER = 12, 16, 16, 8
 
 
 class StrictModel(BaseModel):
@@ -193,7 +192,14 @@ class VisualSpec(StrictModel):
     title: str | None = None
     # textbox
     text: str | None = None
+    subtitle: str | None = None  # segunda línea pequeña: periodo, alcance, unidad
     font_size_pt: int = 24
+    # `banner` pinta la cabecera con el color de la identidad y el texto en blanco
+    style: Literal["plain", "banner"] = "plain"
+    # shape: bloque de color para acentos y separadores
+    shape_kind: Literal["rectangle", "rectangleRounded", "line"] = "rectangle"
+    # card: el KPI principal se ve más grande que los de apoyo
+    emphasis: bool = False
     # card
     measure: str | None = None
     # line / column / bar
@@ -207,6 +213,8 @@ class VisualSpec(StrictModel):
     data_labels: bool = False
     # El color dice de qué habla el visual; no decora. Se resuelve contra la identidad del cliente
     accent: Literal["primary", "secondary", "positive", "negative", "warning", "neutral"] | None = None
+    # Medida DAX que devuelve un color (#RRGGBB) por punto: formato condicional de verdad
+    color_measure: str | None = None
     # matrix
     rows: list[str] = []
     columns: list[str] = []
@@ -222,6 +230,7 @@ class VisualSpec(StrictModel):
             raise ValueError(f"visual {self.name!r}: x, y, w y h son obligatorios sin `grid`")
         t = self.type
         need = {
+            "shape": True,
             "textbox": bool(self.text),
             "card": bool(self.measure),
             "line": bool(self.category and self.values),
@@ -234,11 +243,17 @@ class VisualSpec(StrictModel):
             raise ValueError(f"visual {self.name!r} ({t}): faltan campos obligatorios para su tipo")
         for ref in self.field_refs():
             FieldRef.parse(ref)
+        if self.color_measure:
+            FieldRef.parse(self.color_measure)
         return self
 
     def field_refs(self) -> list[str]:
         refs = [r for r in (self.measure, self.category, self.series, self.field) if r]
         return refs + list(self.values) + list(self.rows) + list(self.columns)
+
+    def measure_refs(self) -> list[str]:
+        """Referencias que deben ser medidas (incluida la de color)."""
+        return [r for r in ([self.measure, self.color_measure] + list(self.values)) if r]
 
     def position(self, width: int, height: int) -> tuple[float, float, float, float]:
         if self.grid is not None:
@@ -349,8 +364,10 @@ class SpecLock(StrictModel):
                     raise ValueError(f"relación {rel.from_} -> {rel.to}: {side} debe ser una columna")
         for p in self.report.pages:
             for v in p.visuals:
-                for ref in v.field_refs():
+                for ref in v.field_refs() + ([v.color_measure] if v.color_measure else []):
                     kind = self.field_kind(ref)
+                    if ref == v.color_measure and kind != "Measure":
+                        raise ValueError(f"visual {v.name!r}: `color_measure` debe ser una medida: {ref}")
                     if ref == v.measure and kind != "Measure":
                         raise ValueError(f"visual {v.name!r}: `measure` debe ser una medida: {ref}")
                     if ref in v.values and kind != "Measure":

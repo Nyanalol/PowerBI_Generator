@@ -38,9 +38,9 @@ class BrandFonts(BaseModel):
 
     family: str = "Segoe UI"
     family_bold: str | None = None
-    title_size: int = 14
+    title_size: int = 13
     label_size: int = 11  # ejes, leyendas y tablas: 10 pt se lee mal en pantalla grande
-    callout_size: int = 40  # la cifra de una tarjeta manda; con 32 pt sobraba espacio vacío
+    callout_size: int = 32  # la cifra manda, pero a 40 pt aplastaba al resto de la página
 
 
 class Brand(BaseModel):
@@ -120,7 +120,7 @@ def _theme_body(brand: Brand) -> dict:
                 "*": {
                     "grid": [
                         {
-                            "rowPadding": 3,
+                            "rowPadding": 5,
                             "textSize": f.label_size,
                             "gridVertical": False,
                             "gridHorizontal": True,
@@ -154,10 +154,12 @@ def _theme_body(brand: Brand) -> dict:
                     "total": [{"fontSize": f.label_size, "bold": True, "fontColor": {"solid": {"color": c.foreground}}}],
                 }
             },
-            # La línea por defecto es fina y sin marcadores: con 16 puntos se lee mejor gruesa
+            # La línea por defecto es fina y sin marcadores: con 16 puntos se lee mejor gruesa.
+            # Sin borde: si todos los visuales llevan marco, la página parece una plantilla.
             "lineChart": {
                 "*": {
                     "lineStyles": [{"strokeWidth": 3, "lineStyle": "solid", "showMarker": True, "markerShape": "circle", "markerSize": 4}],
+                    "border": [{"show": False}],
                 }
             },
             # Barras y columnas: más gruesas (menos hueco entre ellas) y sin borde
@@ -166,6 +168,7 @@ def _theme_body(brand: Brand) -> dict:
                     "categoryAxis": [{"innerPadding": 25, "maxMarginFactor": 35}],
                     "dataPoint": [{"borderShow": False}],
                     "labels": [{"fontSize": f.label_size, "labelPosition": "OutsideEnd", "enableBackground": False}],
+                    "border": [{"show": False}],
                 }
             },
             "clusteredBarChart": {
@@ -173,6 +176,7 @@ def _theme_body(brand: Brand) -> dict:
                     "categoryAxis": [{"innerPadding": 25, "maxMarginFactor": 35}],
                     "dataPoint": [{"borderShow": False}],
                     "labels": [{"fontSize": f.label_size, "labelPosition": "OutsideEnd", "enableBackground": False}],
+                    "border": [{"show": False}],
                 }
             },
             # El slicer es un control, no un gráfico: cabecera discreta y sin caja alrededor
@@ -206,6 +210,10 @@ def accent_colors(brand: Brand | None) -> dict[str, str]:
         "negative": c.bad,
         "warning": c.neutral,
         "neutral": c.secondary,
+        # Extras que usa el emisor para el cuadro de texto del título
+        "title_text": c.foreground,
+        "font": brand.fonts.family,
+        "font_bold": brand.fonts.family_bold or f"{brand.fonts.family} Semibold",
     }
 
 

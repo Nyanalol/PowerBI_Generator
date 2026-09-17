@@ -70,6 +70,37 @@ Cada visual declara su `accent`:
 Pendiente de emisor v2, y por eso hoy se anota en la entrega: colorear una barra negativa distinto
 de una positiva dentro del mismo gráfico (formato condicional por regla).
 
+## Retícula y jerarquía (medidas fijas)
+
+Lienzo 1280x720, retícula de 12 columnas por 16 filas, margen 16 px y separación 8 px: la columna
+mide 96 px y la fila 35,5 px. Las bandas son siempre estas:
+
+| Banda | Filas | Alto |
+|---|---|---|
+| Cabecera (barra de acento, título, subtítulo, filtros) | 0-1 | 79 px |
+| KPIs | 2-4 | 114 px |
+| Zona analítica principal | 5-10 | 249 px |
+| Zona analítica secundaria | 11-15 | 213 px |
+
+Cuatro reglas que no se saltan:
+
+1. **Un visual dominante por página**, con entre el 35 % y el 45 % del área analítica. Si todos los
+   visuales pesan lo mismo, la página se lee plana y parece generada.
+2. **Como mucho el 40 % de los visuales con borde.** Tarjetas, segmentadores y matriz pueden
+   llevarlo; los gráficos, no. El marco repetido en todo es lo que más delata una plantilla.
+3. **Composición distinta en páginas consecutivas.** Hay cuatro repartos base: 8+4, 7+5, 6+6 y un
+   bloque de 12. Se elige por contenido, no por inercia.
+4. **Jerarquía tipográfica fija**, con al menos 10 puntos entre el título de página y el de visual:
+
+| Elemento | Tamaño |
+|---|---|
+| Título de página | 26 pt seminegrita, con barra de acento de 4 px a su izquierda |
+| Subtítulo de página | 11 pt en gris, dice la intención de la página, no el nombre del dataset |
+| Cifra de KPI | 32 pt, y 36 pt en el KPI principal |
+| Etiqueta de KPI | 11-12 pt en gris, encima de la cifra |
+| Título de visual | 13 pt seminegrita |
+| Ejes, leyendas y tablas | 11 pt |
+
 ## Consistencia entre páginas
 
 - Los mismos slicers, en la misma posición, en todas las páginas.

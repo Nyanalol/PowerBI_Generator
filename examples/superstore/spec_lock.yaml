@@ -55,6 +55,7 @@ model:
         - { name: Ventas Año Previo, dax: "CALCULATE([Ventas], Fechas[Año] = MAX(Fechas[Año]) - 1)", format: "$#,##0", description: Ventas del año anterior al último con datos, folder: Tiempo }
         - { name: Crecimiento Anual %, dax: "DIVIDE([Ventas Último Año] - [Ventas Año Previo], [Ventas Año Previo])", format: "0.0%", description: Último año frente al anterior; válido sin filtro temporal, folder: Tiempo }
         - { name: Plazo Medio Envío, dax: "AVERAGEX(Pedidos, DATEDIFF(Pedidos[Fecha Pedido], Pedidos[Fecha Envío], DAY))", format: "#,##0.0", description: Días medios entre la fecha de pedido y la de envío, folder: Operaciones }
+        - { name: Color Beneficio, dax: "IF([Beneficio] < 0, \"#C0392B\", \"#27AE60\")", format: "General", description: Color del punto según el beneficio sea positivo o negativo; solo para formato condicional, folder: Formato }
 
     - name: Clientes
       description: Una fila por cliente, derivada del fichero de pedidos
@@ -78,60 +79,63 @@ report:
   pages:
     - name: Resumen
       visuals:
-        - { type: textbox, name: titulo, text: "Resumen de ventas y rentabilidad", font_size_pt: 20, grid: { col: 0, row: 0, cols: 8, rows: 2 } }
+        # Cabecera: barra de acento, título a 26 pt con subtítulo y filtros a la derecha
+        - { type: shape, name: acento, accent: primary, x: 16, y: 18, w: 4, h: 44 }
+        - { type: textbox, name: titulo, text: "Resumen de ventas y rentabilidad", subtitle: "Evolución comercial, rentabilidad y distribución por región", font_size_pt: 26, x: 34, y: 14, w: 700, h: 82 }
         - { type: slicer, name: f_anio, field: "Fechas[Año]", mode: dropdown, title: Año, grid: { col: 8, row: 0, cols: 2, rows: 2 } }
         - { type: slicer, name: f_region, field: "Pedidos[Región]", mode: dropdown, title: Región, grid: { col: 10, row: 0, cols: 2, rows: 2 } }
-        - { type: card, name: kpi_ventas, measure: "Pedidos[Ventas]", title: Ventas, accent: primary, grid: { col: 0, row: 2, cols: 3, rows: 2 } }
-        - { type: card, name: kpi_beneficio, measure: "Pedidos[Beneficio]", title: Beneficio, accent: positive, grid: { col: 3, row: 2, cols: 3, rows: 2 } }
-        - { type: card, name: kpi_margen, measure: "Pedidos[Margen %]", title: Margen, accent: secondary, grid: { col: 6, row: 2, cols: 3, rows: 2 } }
-        - { type: card, name: kpi_pedidos, measure: "Pedidos[Nº Pedidos]", title: Pedidos, accent: neutral, grid: { col: 9, row: 2, cols: 3, rows: 2 } }
-        # 16 trimestres: con eje, sin etiquetas de datos (se apinarian)
-        - { type: line, name: tendencia, title: Ventas por trimestre frente al año anterior, category: "Fechas[AñoTrimestre]", values: ["Pedidos[Ventas]", "Pedidos[Ventas PY]"], grid: { col: 0, row: 4, cols: 8, rows: 4 } }
-        # 4 barras: el valor junto a la barra y sin eje, que no aporta nada
-        - { type: bar, name: por_region, title: Ventas por región, category: "Pedidos[Región]", values: ["Pedidos[Ventas]"], data_labels: true, accent: primary, grid: { col: 8, row: 4, cols: 4, rows: 4 } }
-        - { type: column, name: beneficio_categoria, title: Beneficio por categoría, category: "Productos[Categoría]", values: ["Pedidos[Beneficio]"], data_labels: true, accent: positive, grid: { col: 0, row: 8, cols: 6, rows: 4 } }
-        - { type: column, name: beneficio_segmento, title: Beneficio por segmento de cliente, category: "Clientes[Segmento]", values: ["Pedidos[Beneficio]"], data_labels: true, accent: positive, grid: { col: 6, row: 8, cols: 6, rows: 4 } }
+        - { type: card, name: kpi_ventas, measure: "Pedidos[Ventas]", title: Ventas, accent: primary, emphasis: true, grid: { col: 0, row: 2, cols: 3, rows: 3 } }
+        - { type: card, name: kpi_beneficio, measure: "Pedidos[Beneficio]", title: Beneficio, accent: positive, grid: { col: 3, row: 2, cols: 3, rows: 3 } }
+        - { type: card, name: kpi_margen, measure: "Pedidos[Margen %]", title: Margen, accent: secondary, grid: { col: 6, row: 2, cols: 3, rows: 3 } }
+        - { type: card, name: kpi_pedidos, measure: "Pedidos[Nº Pedidos]", title: Pedidos, accent: neutral, grid: { col: 9, row: 2, cols: 3, rows: 3 } }
+        - { type: line, name: tendencia, title: Ventas por trimestre frente al año anterior, category: "Fechas[AñoTrimestre]", values: ["Pedidos[Ventas]", "Pedidos[Ventas PY]"], grid: { col: 0, row: 5, cols: 8, rows: 6 } }
+        - { type: bar, name: por_region, title: Ventas por región, category: "Pedidos[Región]", values: ["Pedidos[Ventas]"], accent: primary, data_labels: true, grid: { col: 8, row: 5, cols: 4, rows: 6 } }
+        - { type: column, name: beneficio_categoria, title: Beneficio por categoría, category: "Productos[Categoría]", values: ["Pedidos[Beneficio]"], color_measure: "Pedidos[Color Beneficio]", data_labels: true, grid: { col: 0, row: 11, cols: 6, rows: 5 } }
+        - { type: column, name: beneficio_segmento, title: Beneficio por segmento de cliente, category: "Clientes[Segmento]", values: ["Pedidos[Beneficio]"], accent: positive, data_labels: true, grid: { col: 6, row: 11, cols: 6, rows: 5 } }
 
     - name: Rentabilidad
       visuals:
-        - { type: textbox, name: titulo, text: "Rentabilidad por producto y descuento", font_size_pt: 20, grid: { col: 0, row: 0, cols: 8, rows: 2 } }
+        # Cabecera: barra de acento, título a 26 pt con subtítulo y filtros a la derecha
+        - { type: shape, name: acento, accent: positive, x: 16, y: 18, w: 4, h: 44 }
+        - { type: textbox, name: titulo, text: "Rentabilidad por producto y descuento", subtitle: "Dónde se gana y dónde se pierde dinero, y qué papel juega el descuento", font_size_pt: 26, x: 34, y: 14, w: 700, h: 82 }
         - { type: slicer, name: f_anio, field: "Fechas[Año]", mode: dropdown, title: Año, grid: { col: 8, row: 0, cols: 2, rows: 2 } }
         - { type: slicer, name: f_categoria, field: "Productos[Categoría]", mode: dropdown, title: Categoría, grid: { col: 10, row: 0, cols: 2, rows: 2 } }
-        - { type: card, name: kpi_margen, measure: "Pedidos[Margen %]", title: Margen, accent: secondary, grid: { col: 0, row: 2, cols: 3, rows: 2 } }
-        - { type: card, name: kpi_descuento, measure: "Pedidos[Descuento Medio]", title: Descuento medio, accent: warning, grid: { col: 3, row: 2, cols: 3, rows: 2 } }
-        - { type: card, name: kpi_beneficio, measure: "Pedidos[Beneficio]", title: Beneficio, accent: positive, grid: { col: 6, row: 2, cols: 3, rows: 2 } }
-        - { type: card, name: kpi_ventas, measure: "Pedidos[Ventas]", title: Ventas, accent: primary, grid: { col: 9, row: 2, cols: 3, rows: 2 } }
-        # 17 subcategorías: el máximo que admite una barra, y solo ocupando toda la altura. Ascendente: las pérdidas arriba
-        - { type: bar, name: beneficio_subcategoria, title: Beneficio por subcategoría, category: "Productos[Subcategoría]", values: ["Pedidos[Beneficio]"], sort_direction: asc, accent: positive, grid: { col: 0, row: 4, cols: 6, rows: 8 } }
-        - { type: column, name: beneficio_descuento, title: Beneficio según el descuento aplicado, category: "Pedidos[Descuento]", values: ["Pedidos[Beneficio]"], sort: category, accent: warning, grid: { col: 6, row: 4, cols: 6, rows: 4 } }
-        - { type: matrix, name: tabla, title: Ventas y margen por categoría, rows: ["Productos[Categoría]", "Productos[Subcategoría]"], values: ["Pedidos[Ventas]", "Pedidos[Beneficio]", "Pedidos[Margen %]", "Pedidos[Descuento Medio]"], grid: { col: 6, row: 8, cols: 6, rows: 4 } }
+        - { type: card, name: kpi_margen, measure: "Pedidos[Margen %]", title: Margen, accent: secondary, emphasis: true, grid: { col: 0, row: 2, cols: 3, rows: 3 } }
+        - { type: card, name: kpi_descuento, measure: "Pedidos[Descuento Medio]", title: Descuento medio, accent: warning, grid: { col: 3, row: 2, cols: 3, rows: 3 } }
+        - { type: card, name: kpi_beneficio, measure: "Pedidos[Beneficio]", title: Beneficio, accent: positive, grid: { col: 6, row: 2, cols: 3, rows: 3 } }
+        - { type: card, name: kpi_ventas, measure: "Pedidos[Ventas]", title: Ventas, accent: primary, grid: { col: 9, row: 2, cols: 3, rows: 3 } }
+        - { type: bar, name: beneficio_subcategoria, title: Beneficio por subcategoría, category: "Productos[Subcategoría]", values: ["Pedidos[Beneficio]"], sort_direction: asc, color_measure: "Pedidos[Color Beneficio]", grid: { col: 0, row: 5, cols: 5, rows: 11 } }
+        - { type: column, name: beneficio_descuento, title: Beneficio según el descuento aplicado, category: "Pedidos[Descuento]", values: ["Pedidos[Beneficio]"], sort: category, accent: warning, grid: { col: 5, row: 5, cols: 7, rows: 6 } }
+        - { type: matrix, name: tabla, title: Ventas y margen por categoría, rows: ["Productos[Categoría]", "Productos[Subcategoría]"], values: ["Pedidos[Ventas]", "Pedidos[Beneficio]", "Pedidos[Margen %]", "Pedidos[Descuento Medio]"], grid: { col: 5, row: 11, cols: 7, rows: 5 } }
 
     - name: Clientes
       visuals:
-        - { type: textbox, name: titulo, text: "Clientes y segmentos", font_size_pt: 20, grid: { col: 0, row: 0, cols: 8, rows: 2 } }
+        # Cabecera: barra de acento, título a 26 pt con subtítulo y filtros a la derecha
+        - { type: shape, name: acento, accent: secondary, x: 16, y: 18, w: 4, h: 44 }
+        - { type: textbox, name: titulo, text: "Clientes y segmentos", subtitle: "Quién compra, cuánto pesa cada segmento y qué margen deja", font_size_pt: 26, x: 34, y: 14, w: 700, h: 82 }
         - { type: slicer, name: f_anio, field: "Fechas[Año]", mode: dropdown, title: Año, grid: { col: 8, row: 0, cols: 2, rows: 2 } }
         - { type: slicer, name: f_segmento, field: "Clientes[Segmento]", mode: dropdown, title: Segmento, grid: { col: 10, row: 0, cols: 2, rows: 2 } }
-        - { type: card, name: kpi_clientes, measure: "Pedidos[Clientes Activos]", title: Clientes activos, accent: secondary, grid: { col: 0, row: 2, cols: 3, rows: 2 } }
-        - { type: card, name: kpi_ticket, measure: "Pedidos[Ticket Medio por Pedido]", title: Ticket medio por pedido, accent: neutral, grid: { col: 3, row: 2, cols: 3, rows: 2 } }
-        - { type: card, name: kpi_pedidos, measure: "Pedidos[Nº Pedidos]", title: Pedidos, accent: neutral, grid: { col: 6, row: 2, cols: 3, rows: 2 } }
-        - { type: card, name: kpi_ventas, measure: "Pedidos[Ventas]", title: Ventas, accent: primary, grid: { col: 9, row: 2, cols: 3, rows: 2 } }
-        - { type: bar, name: ventas_segmento, title: Ventas por segmento, category: "Clientes[Segmento]", values: ["Pedidos[Ventas]"], data_labels: true, accent: primary, grid: { col: 0, row: 4, cols: 4, rows: 4 } }
-        - { type: column, name: pedidos_mes, title: Pedidos por mes y año, category: "Fechas[Mes]", series: "Fechas[Año]", values: ["Pedidos[Nº Pedidos]"], grid: { col: 4, row: 4, cols: 8, rows: 4 } }
-        # 793 clientes no caben en un gráfico: el detalle por cliente se lee en la matriz
-        - { type: matrix, name: tabla, title: Ventas y margen por cliente, rows: ["Clientes[Segmento]", "Clientes[Cliente]"], values: ["Pedidos[Ventas]", "Pedidos[Nº Pedidos]", "Pedidos[Beneficio]", "Pedidos[Margen %]"], grid: { col: 0, row: 8, cols: 6, rows: 4 } }
-        - { type: bar, name: clientes_region, title: Clientes activos por región, category: "Pedidos[Región]", values: ["Pedidos[Clientes Activos]"], data_labels: true, accent: secondary, grid: { col: 6, row: 8, cols: 6, rows: 4 } }
+        - { type: card, name: kpi_clientes, measure: "Pedidos[Clientes Activos]", title: Clientes activos, accent: secondary, emphasis: true, grid: { col: 0, row: 2, cols: 3, rows: 3 } }
+        - { type: card, name: kpi_ticket, measure: "Pedidos[Ticket Medio por Pedido]", title: Ticket medio por pedido, accent: neutral, grid: { col: 3, row: 2, cols: 3, rows: 3 } }
+        - { type: card, name: kpi_pedidos, measure: "Pedidos[Nº Pedidos]", title: Pedidos, accent: neutral, grid: { col: 6, row: 2, cols: 3, rows: 3 } }
+        - { type: card, name: kpi_ventas, measure: "Pedidos[Ventas]", title: Ventas, accent: primary, grid: { col: 9, row: 2, cols: 3, rows: 3 } }
+        - { type: matrix, name: tabla, title: Ventas y margen por cliente, rows: ["Clientes[Segmento]", "Clientes[Cliente]"], values: ["Pedidos[Ventas]", "Pedidos[Nº Pedidos]", "Pedidos[Beneficio]", "Pedidos[Margen %]"], grid: { col: 0, row: 5, cols: 7, rows: 6 } }
+        - { type: bar, name: clientes_region, title: Clientes activos por región, category: "Pedidos[Región]", values: ["Pedidos[Clientes Activos]"], accent: secondary, data_labels: true, grid: { col: 7, row: 5, cols: 5, rows: 6 } }
+        - { type: bar, name: ventas_segmento, title: Ventas por segmento, category: "Clientes[Segmento]", values: ["Pedidos[Ventas]"], accent: primary, data_labels: true, grid: { col: 0, row: 11, cols: 4, rows: 5 } }
+        - { type: column, name: pedidos_mes, title: Pedidos por mes y año, category: "Fechas[Mes]", series: "Fechas[Año]", values: ["Pedidos[Nº Pedidos]"], grid: { col: 4, row: 11, cols: 8, rows: 5 } }
 
     - name: Operaciones
       visuals:
-        - { type: textbox, name: titulo, text: "Operaciones y plazos de envío", font_size_pt: 20, grid: { col: 0, row: 0, cols: 8, rows: 2 } }
+        # Cabecera: barra de acento, título a 26 pt con subtítulo y filtros a la derecha
+        - { type: shape, name: acento, accent: warning, x: 16, y: 18, w: 4, h: 44 }
+        - { type: textbox, name: titulo, text: "Operaciones y plazos de envío", subtitle: "Volumen por modo de envío y días desde el pedido hasta la expedición", font_size_pt: 26, x: 34, y: 14, w: 700, h: 82 }
         - { type: slicer, name: f_anio, field: "Fechas[Año]", mode: dropdown, title: Año, grid: { col: 8, row: 0, cols: 2, rows: 2 } }
         - { type: slicer, name: f_region, field: "Pedidos[Región]", mode: dropdown, title: Región, grid: { col: 10, row: 0, cols: 2, rows: 2 } }
-        - { type: card, name: kpi_plazo, measure: "Pedidos[Plazo Medio Envío]", title: Plazo medio de envío (días), accent: warning, grid: { col: 0, row: 2, cols: 3, rows: 2 } }
-        - { type: card, name: kpi_pedidos, measure: "Pedidos[Nº Pedidos]", title: Pedidos, accent: neutral, grid: { col: 3, row: 2, cols: 3, rows: 2 } }
-        - { type: card, name: kpi_cantidad, measure: "Pedidos[Cantidad]", title: Unidades, accent: neutral, grid: { col: 6, row: 2, cols: 3, rows: 2 } }
-        - { type: card, name: kpi_ventas, measure: "Pedidos[Ventas]", title: Ventas, accent: primary, grid: { col: 9, row: 2, cols: 3, rows: 2 } }
-        - { type: column, name: pedidos_modo, title: Pedidos por modo de envío, category: "Pedidos[Modo Envío]", values: ["Pedidos[Nº Pedidos]"], data_labels: true, accent: primary, grid: { col: 0, row: 4, cols: 6, rows: 4 } }
-        - { type: bar, name: plazo_modo, title: Plazo medio de envío por modo (días), category: "Pedidos[Modo Envío]", values: ["Pedidos[Plazo Medio Envío]"], data_labels: true, accent: warning, grid: { col: 6, row: 4, cols: 6, rows: 4 } }
-        # Los 49 estados se leen en la matriz con drill desde la región; un ranking de 49 barras sería scroll puro
-        - { type: matrix, name: tabla, title: Servicio por región y estado, rows: ["Pedidos[Región]", "Pedidos[Estado]"], values: ["Pedidos[Nº Pedidos]", "Pedidos[Ventas]", "Pedidos[Plazo Medio Envío]"], grid: { col: 0, row: 8, cols: 5, rows: 4 } }
-        - { type: bar, name: plazo_region, title: Plazo medio de envío por región (días), category: "Pedidos[Región]", values: ["Pedidos[Plazo Medio Envío]"], data_labels: true, accent: warning, grid: { col: 5, row: 8, cols: 7, rows: 4 } }
+        - { type: card, name: kpi_plazo, measure: "Pedidos[Plazo Medio Envío]", title: Plazo medio de envío (días), accent: warning, emphasis: true, grid: { col: 0, row: 2, cols: 3, rows: 3 } }
+        - { type: card, name: kpi_pedidos, measure: "Pedidos[Nº Pedidos]", title: Pedidos, accent: neutral, grid: { col: 3, row: 2, cols: 3, rows: 3 } }
+        - { type: card, name: kpi_cantidad, measure: "Pedidos[Cantidad]", title: Unidades, accent: neutral, grid: { col: 6, row: 2, cols: 3, rows: 3 } }
+        - { type: card, name: kpi_ventas, measure: "Pedidos[Ventas]", title: Ventas, accent: primary, grid: { col: 9, row: 2, cols: 3, rows: 3 } }
+        - { type: column, name: pedidos_modo, title: Pedidos por modo de envío, category: "Pedidos[Modo Envío]", values: ["Pedidos[Nº Pedidos]"], accent: primary, data_labels: true, grid: { col: 0, row: 5, cols: 6, rows: 6 } }
+        - { type: bar, name: plazo_modo, title: Plazo medio de envío por modo (días), category: "Pedidos[Modo Envío]", values: ["Pedidos[Plazo Medio Envío]"], accent: warning, data_labels: true, grid: { col: 6, row: 5, cols: 6, rows: 6 } }
+        - { type: matrix, name: tabla, title: Servicio por región y estado, rows: ["Pedidos[Región]", "Pedidos[Estado]"], values: ["Pedidos[Nº Pedidos]", "Pedidos[Ventas]", "Pedidos[Plazo Medio Envío]"], grid: { col: 0, row: 11, cols: 7, rows: 5 } }
+        - { type: bar, name: plazo_region, title: Plazo medio de envío por región (días), category: "Pedidos[Región]", values: ["Pedidos[Plazo Medio Envío]"], accent: warning, data_labels: true, grid: { col: 7, row: 11, cols: 5, rows: 5 } }

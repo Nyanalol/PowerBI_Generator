@@ -68,8 +68,9 @@ def test_grid_fits_slicer_minimum_height() -> None:
     from pbigen.spec import GridPos
 
     x, y, w, h = GridPos(col=8, row=0, cols=2, rows=2).to_px()
-    assert h >= 76, "un slicer desplegable con cabecera necesita 76 px (2 filas de la rejilla de 12)"
-    assert GridPos(col=0, row=0, cols=3, rows=2).to_px()[3] >= 100, "una tarjeta necesita 100 px"
+    assert h >= 76, "un slicer desplegable con cabecera necesita 76 px (2 filas de la retícula de 16)"
+    assert GridPos(col=0, row=2, cols=3, rows=3).to_px()[3] >= 100, "una tarjeta necesita 100 px (3 filas)"
+    assert x + w <= 1280
     assert x + w <= 1280 and y + h <= 720
 
 

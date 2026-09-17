@@ -31,6 +31,7 @@ VERSION_AT_IMPORT = {"visual": "2.4.0", "page": "2.0.0", "report": "3.0.0"}
 BASE_THEME = "CY26SU08"  # copiado de Power BI Desktop 2.157; ver resources/base_themes
 
 _VISUAL_TYPES = {
+    "shape": "shape",
     "card": "cardVisual",
     "line": "lineChart",
     "column": "clusteredColumnChart",
@@ -117,28 +118,80 @@ def visual_json(
     }
     vt = _VISUAL_TYPES[v.type]
     visual: dict = {"visualType": vt}
-    if v.type == "textbox":
+    if v.type == "shape":
+        # Bloque de color: barra de acento junto al título, separadores, fondos de sección
+        color = (accents or {}).get(v.accent or "primary", "#1F4E79")
         visual["objects"] = {
-            "general": [
-                {
-                    "properties": {
-                        "paragraphs": [{"textRuns": [{"value": v.text, "textStyle": {"fontSize": f"{v.font_size_pt}pt"}}]}]
-                    }
-                }
-            ]
+            "shape": [{"properties": {"tileShape": _literal(f"'{v.shape_kind}'")}}],
+            "fill": [{"properties": {"show": _literal("true"), "fillColor": _fill(color), "transparency": _num(0)}}],
+            "outline": [{"properties": {"show": _literal("false")}}],
         }
         visual["visualContainerObjects"] = {
             "title": [{"properties": {"show": _literal("false")}}],
             "background": [{"properties": {"show": _literal("false")}}],
             "border": [{"properties": {"show": _literal("false")}}],
         }
+    elif v.type == "textbox":
+        # El título de página manda en la jerarquía: seminegrita, color fuerte y, si se pide,
+        # una banda con el color de la identidad y el texto en blanco.
+        banner = v.style == "banner"
+        accents_ = accents or {}
+        title_color = "#FFFFFF" if banner else accents_.get("title_text", "#1F2933")
+        subtitle_color = "#E8EDF2" if banner else accents_.get("neutral", "#605E5C")
+        paragraphs = [
+            {
+                "textRuns": [
+                    {
+                        "value": v.text,
+                        "textStyle": {
+                            "fontFamily": accents_.get("font_bold", "Segoe UI Semibold"),
+                            "fontSize": f"{v.font_size_pt}pt",
+                            "fontWeight": "bold",
+                            "color": title_color,
+                        },
+                    }
+                ],
+                "horizontalTextAlignment": "left",
+            }
+        ]
+        if v.subtitle:
+            paragraphs.append(
+                {
+                    "textRuns": [
+                        {
+                            "value": v.subtitle,
+                            "textStyle": {
+                                "fontFamily": accents_.get("font", "Segoe UI"),
+                                "fontSize": f"{max(10, v.font_size_pt // 2)}pt",
+                                "color": subtitle_color,
+                            },
+                        }
+                    ],
+                    "horizontalTextAlignment": "left",
+                }
+            )
+        visual["objects"] = {"general": [{"properties": {"paragraphs": paragraphs}}]}
+        container: dict = {
+            "title": [{"properties": {"show": _literal("false")}}],
+            "border": [{"properties": {"show": _literal("false")}}],
+        }
+        if banner:
+            container["background"] = [
+                {"properties": {"show": _literal("true"), "color": _fill(accents_.get("primary", "#1F4E79")), "transparency": _num(0)}}
+            ]
+            container["padding"] = [
+                {"properties": {"top": _num(10), "bottom": _num(10), "left": _num(16), "right": _num(16)}, "selector": {"id": "default"}}
+            ]
+        else:
+            container["background"] = [{"properties": {"show": _literal("false")}}]
+        visual["visualContainerObjects"] = container
     elif v.type == "card":
         visual["query"] = {"queryState": {"Data": _role(spec, [v.measure or ""])}, "sortDefinition": {"isDefaultSort": True}}
         visual["drillFilterOtherVisuals"] = True
         # La tarjeta ignora estas propiedades cuando llegan por el tema, así que las escribe el
         # emisor: cifra grande, sin marco interior y sin relleno que desaproveche el espacio.
         objects: dict = {
-            "value": [{"properties": {"fontSize": _num(card_value_size)}}],
+            "value": [{"properties": {"fontSize": _num(card_value_size + (4 if v.emphasis else 0))}}],
             "layout": [{"properties": {"paddingUniform": _int(2)}, "selector": {"id": "default"}}],
         }
         accent_hex = (accents or {}).get(v.accent or "", None)
@@ -150,7 +203,7 @@ def visual_json(
                         "show": _literal("true"),
                         "position": _literal("'Left'"),
                         "color": _fill(accent_hex),
-                        "width": _num(6),
+                        "width": _num(4),
                     },
                     "selector": {"id": "default"},
                 }
@@ -198,7 +251,24 @@ def visual_json(
             chart_objects["labels"] = [{"properties": {"show": _literal("true")}}]
             chart_objects["valueAxis"] = [{"properties": {"show": _literal("false")}}]
         accent_hex = (accents or {}).get(v.accent or "", None)
-        if accent_hex and not v.series:
+        if v.color_measure:
+            # Formato condicional real: el color sale de una medida DAX que devuelve el HEX,
+            # así una barra negativa se pinta distinta de una positiva en el mismo gráfico.
+            ref = FieldRef.parse(v.color_measure)
+            chart_objects["dataPoint"] = [
+                {
+                    "properties": {
+                        "fill": {
+                            "solid": {
+                                "color": {
+                                    "expr": {"Measure": {"Expression": {"SourceRef": {"Entity": ref.table}}, "Property": ref.prop}}
+                                }
+                            }
+                        }
+                    }
+                }
+            ]
+        elif accent_hex and not v.series:
             chart_objects["dataPoint"] = [{"properties": {"defaultColor": _fill(accent_hex)}}]
         if chart_objects:
             visual["objects"] = chart_objects
