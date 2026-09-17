@@ -1,13 +1,21 @@
 # PowerBI Generator — análisis de viabilidad y plan
 
-Fecha: 2026-09-17. Estado: propuesta inicial, pendiente de auditoría cruzada.
+Fecha: 2026-09-17. Estado: revisado tras una ronda de auditoría cruzada (seis correcciones
+incorporadas: licencia, papel real de la CLI de Microsoft, formato por visual, plan B de
+capturas, unidad de entrega, entrada PBIX).
 
 ## 0. Objetivo
 
-Herramienta **productiva para el equipo y para trabajos futuros**: un consultor recibe datos y un
-brief de un cliente y obtiene un proyecto Power BI (modelo + informe) revisable, versionable y
-entregable, con calidad comprobada antes de enseñarlo. No es una prueba personal. Eso impone
-requisitos desde el día uno:
+Herramienta **productiva para el equipo y para trabajos futuros**, personalizable por cliente:
+un consultor recibe el encargo de un cliente (de esta empresa o de cualquier otra) y obtiene un
+resultado revisable, versionable y entregable, con calidad comprobada antes de enseñarlo. Dos
+modos de uso, con la identidad y las reglas del cliente cargadas como configuración:
+
+- **Crear**: datos + brief → proyecto Power BI nuevo (modelo + informe).
+- **Revisar**: PBIP existente del cliente → informe de auditoría (modelo, DAX, rendimiento,
+  layout, cumplimiento de identidad) y, si se pide, correcciones aplicadas sobre el mismo PBIP.
+
+No es una prueba personal. Eso impone requisitos desde el día uno:
 
 - **Instalable en cualquier máquina del equipo** con un comando, sin depender de plugins o rutas
   de una máquina concreta. Prerrequisitos documentados y comprobados por un script (`doctor`).
@@ -45,7 +53,7 @@ cambia por ser Power BI:
 | Confirmación bloqueante antes de generar | Único gate humano obligatorio: el usuario aprueba modelo e informe propuestos |
 | Librería de identidades / plantillas | Identidad corporativa → tema JSON de Power BI; plantillas de página reutilizables |
 | Control de calidad determinista antes de entregar | Validación de esquema + tests DAX + capturas de pantalla revisadas |
-| **Quién escribe el artefacto final** | **El código, no el LLM.** El `visual.json` es JSON estricto con cientos de propiedades; escribirlo a mano es el antipatrón que las librerías de skills de Microsoft y data-goblin prohíben. El LLM escribe la *especificación* (modelo, DAX, layout) y un generador determinista escribe los ficheros |
+| **Quién escribe el artefacto final** | **El código, no el LLM.** El `visual.json` es JSON estricto cuya superficie depende del tipo de visual, roles, selectores y versión de esquema. La skill de Microsoft enseña a escribirlo a mano pero, para construcciones completas, recomienda "un generador determinista que lea el brief aprobado y escriba el JSON"; la de data-goblin prohíbe editarlo a mano. El LLM escribe la *especificación* (modelo, DAX, layout) y un emisor determinista escribe los ficheros. El emisor soporta un conjunto tipado y creciente de construcciones y **falla si recibe algo que no sabe serializar**, en lugar de improvisar |
 | Número de artefactos | **Dos, acoplados:** modelo semántico (datos → estrella → DAX) e informe (páginas → visuales enlazados a campos del modelo). El informe no se puede diseñar sin el modelo |
 | Fuente | **Datos + brief.** Hace falta un paso de *perfilado de datos* (tipos, cardinalidad, claves, rangos de fechas) que alimenta el diseño del modelo |
 
@@ -55,7 +63,7 @@ cambia por ser Power BI:
 |---|---|---|
 | Power BI Desktop 2.157 (Store) | Instalado. Puente local **apagado** (hay que activar la preview y reiniciar) | Render + motor DAX local |
 | Python 3.14 + pandas + duckdb + jsonschema | Instalado | Perfilado de datos, generadores, validación |
-| `pbir` CLI 0.9.32 (data-goblin) | Instalado hoy. **Licencia "Custom Non-Commercial"** | Prototipar en Fase 0. Ver riesgo L1 |
+| `pbir` CLI (data-goblin) | Evaluado y **desinstalado**. Licencia "Custom Non-Commercial": la cláusula 3 nombra expresamente "prestar servicios de consultoría o desarrollo de pago" como uso comercial | **No se usa en ninguna fase.** Ver riesgo L1 |
 | `@microsoft/powerbi-report-authoring-cli` + `@microsoft/powerbi-desktop-bridge-cli` | **No instalados: falta Node.js** (`winget install OpenJS.NodeJS.LTS`). Licencia MIT | Camino por defecto para validar PBIR y capturar Desktop |
 | Plugins Claude `powerbi-authoring` (Microsoft) y `semantic-models`/`tabular-editor` (data-goblin) | Registrados en `installed_plugins.json` pero **la carpeta `plugins/cache` no existe**: no se están cargando | Reinstalar. Sus skills (`powerbi-report-planning`, `semantic-model-authoring`, `tmdl`, `dax`) son conocimiento que no hay que reescribir |
 | Tabular Editor 2 | Instalado (`TabularEditor.exe`), sin `te` en PATH | Validación de modelo, BPA, scripting C# |
@@ -63,11 +71,31 @@ cambia por ser Power BI:
 
 ## 4. Arquitectura propuesta
 
+### 4.0 Entradas de un proyecto (el brief)
+
+Cada proyecto arranca con un `project.yaml` que el comando `init` pregunta o que el usuario
+rellena. Es lo que hace el marco adaptable a cada cliente y encargo. La identidad se guarda
+una vez por cliente y se reutiliza en todos sus proyectos; el modo (`crear` / `revisar`) decide
+qué bloques son obligatorios:
+
+| Bloque | Qué contiene | A qué alimenta |
+|---|---|---|
+| **Empresa / identidad** | Nombre del cliente o equipo; paquete de marca: logo(s), paleta, tipografías, idioma, formato de fecha/moneda. Se guarda como `templates/brands/<empresa>/` reutilizable entre proyectos | Tema JSON de Power BI, cabeceras de página, locale del modelo |
+| **Orígenes de datos** | Ficheros locales (CSV/XLSX/Parquet) en fases 0-3; SQL, Lakehouse o Direct Lake en fase 4. Ruta por parámetro, nunca absoluta en el modelo | Perfilado, partitions M del modelo |
+| **Objetivos** | Audiencia, preguntas de negocio a responder, KPIs prioritarios, decisiones que debe apoyar el informe | Analyst (qué medidas) y Strategist (qué páginas y visuales) |
+| **Restricciones** | Número máximo de páginas, visuales permitidos o vetados, accesibilidad, nivel de detalle, destino (local / workspace) | Strategist y QA |
+| **Ejemplos de referencia** | Opcional: PBIP existente o capturas de informes que gustan al cliente | Strategist, como referencia de estilo |
+| **Objeto a revisar** (modo revisar) | Ruta al PBIP del cliente y alcance: solo diagnóstico, o diagnóstico + correcciones; qué está fuera de alcance | Auditor y, si procede, Executor sobre el PBIP existente |
+
+El brief es el único sitio donde el usuario expresa intención en lenguaje natural; todo lo demás
+se deriva de él y se confirma en el gate del Strategist.
+
 ### 4.1 Estructura de proyecto generado
 
 ```text
 projects/<nombre>/
-  sources/            datos (CSV/XLSX/Parquet) + brief.md del usuario
+  project.yaml        brief: empresa/identidad, orígenes, objetivos, restricciones (§4.0)
+  sources/            datos (CSV/XLSX/Parquet)
   analysis/           data_profile.json  (hechos extraídos por script, no por el LLM)
   report_spec.md      narrativa: audiencia, preguntas de negocio, páginas, KPIs, estilo
   spec_lock.yaml      contrato máquina: tablas, columnas, relaciones, medidas (DAX),
@@ -75,7 +103,14 @@ projects/<nombre>/
   pbip/               SALIDA generada: <nombre>.SemanticModel/ (TMDL) + <nombre>.Report/ (PBIR)
   screenshots/        capturas por página (Desktop bridge)
   tests/              consultas DAX con resultado esperado (smoke tests del modelo)
-  exports/            .pbip empaquetado / despliegue
+  exports/            carpeta PBIP completa empaquetada (ZIP) / despliegue
+```
+
+El fichero `<nombre>.pbip` es **solo un puntero** a la carpeta del informe. La unidad de entrega
+local es la carpeta completa (`.Report` + `.SemanticModel` + `.pbip` + `.gitignore`), nunca el
+`.pbip` suelto.
+
+```text
 ```
 
 ### 4.2 Roles y pipeline
@@ -96,8 +131,10 @@ brief + datos → [1] Perfilado → [2] Analyst: propuesta de modelo (estrella, 
 - **Strategist** (LLM): lee el brief + modelo y propone el informe. Escribe `report_spec.md` y la
   sección `report` de `spec_lock.yaml`. Gate bloqueante.
 - **Executor** (scripts): `generate_model.py` (spec → TMDL vía plantillas Jinja) y
-  `generate_report.py` (spec → PBIR vía CLI de Microsoft o generación directa validada contra
-  el JSON Schema oficial). Determinista: mismo spec, mismos ficheros.
+  `generate_report.py` (spec → modelo interno tipado → emisor PBIR propio). La CLI de Microsoft
+  **no escribe informes**: sus comandos son catálogo de visuales, descubrimiento de propiedades,
+  codificación de expresiones y `validate`. Se usa para consultar capacidades y validar, no para
+  generar. Determinista: mismo spec, mismos ficheros.
 - **QA** (`scripts/quality_check.py` + LLM para leer capturas): validación de esquema, campos
   referenciados existen en el modelo, solapes de visuales, tests DAX contra Desktop, capturas.
 
@@ -107,9 +144,11 @@ brief + datos → [1] Perfilado → [2] Analyst: propuesta de modelo (estrella, 
    locales por parámetro de ruta). Sin Fabric ni licencias hasta la fase 4.
 2. **El LLM nunca escribe `visual.json` ni TMDL a mano.** Escribe `spec_lock.yaml`; el código
    escribe ficheros. Si el generador no cubre algo, se amplía el generador.
-3. **Tema antes que formato por visual.** La identidad (brand) va al tema JSON; los visuales solo
-   llevan enlaces a campos y posición. Es lo que recomiendan ambas librerías y lo que hace el
-   spec_lock pequeño.
+3. **Tema primero, formato por visual cuando no hay otra opción.** La identidad va al tema JSON y
+   los visuales llevan por defecto solo campos y posición. Pero hay propiedades de contenedor
+   (`visualContainerObjects`: fondo, borde, padding, cabecera, y varias de cards) que la cascada de
+   Power BI obliga a fijar por visual; el `spec_lock` admite una sección `format` por visual para
+   exactamente esas, sin convertirse en un espejo de PBIR.
 4. **Rejilla de layout declarativa** (12 columnas × filas sobre 1280×720) en el spec; el generador
    traduce a píxeles. Evita el "todo cards" y hace comparables las plantillas de página.
 5. **Tests DAX como parte del proyecto**, no del framework: cada proyecto tiene `tests/*.yaml`
@@ -125,8 +164,15 @@ Objetivo: comprobar a mano los dos puntos que lo pueden tumbar todo.
 - Crear a mano (o con CLI) el PBIP mínimo: 1 CSV → 1 tabla import → 3 medidas → 1 página → 3 visuales.
 - Criterio de salida: abre en Desktop sin errores; `powerbi-desktop screenshot` produce PNG;
   una consulta DAX contra el motor local devuelve el número esperado.
-- Si el puente no funciona en esta máquina (Store, políticas corporativas), el plan B es
-  exportar capturas tras publicar en un workspace; se decide aquí, no en la fase 3.
+- **Nuevo criterio de salida, el que valida la arquitectura:** un `spec_lock.yaml` mínimo
+  (1 CSV, 1 tabla, 1 medida, 1 visual) genera modelo e informe **con los mismos emisores que usará
+  el producto**, sin LLM, y el resultado abre y se captura. Fase 0 no termina con un PBIP hecho a
+  mano.
+- Si el puente no funciona en esta máquina (Store, políticas corporativas), **el bucle autónomo
+  local ha fallado** y hay que decidirlo aquí. La alternativa cloud (publicar y exportar PNG con
+  `exportToFile`) exige workspace en capacidad Premium/Embedded/Fabric y licencia Pro para
+  publicar; no vale con PPU. Es una opción del bloque con infraestructura (fase 4), no un
+  sustituto gratuito.
 
 ### Fase 1 — Esqueleto del generador
 
@@ -143,11 +189,26 @@ Objetivo: comprobar a mano los dos puntos que lo pueden tumbar todo.
   detalle tabla).
 - Criterio: un dataset tipo ventas (3 CSV) → informe de 3 páginas sin tocar JSON a mano.
 
+### Fase 2b — Modo revisar (en paralelo a la Fase 2; no depende del emisor)
+
+- Lector de PBIP existente (TMDL + PBIR) → inventario: tablas, medidas, relaciones, páginas,
+  visuales, campos usados y huérfanos.
+- Comprobaciones deterministas: reglas de buenas prácticas de modelo (Tabular Editor BPA),
+  validación PBIR con la CLI de Microsoft, solapes y visuales sin datos, cumplimiento del tema
+  del cliente, medidas sin formato ni descripción.
+- Capturas por página con el puente de Desktop y revisión guiada por LLM.
+- Salida: informe de auditoría (Markdown/Word con la plantilla del cliente) con hallazgos
+  priorizados por consecuencia. Las correcciones se aplican solo si están en el alcance del brief.
+- Criterio: auditar un PBIP real de un cliente y que el informe no contenga ningún hallazgo que
+  no se pueda señalar con fichero y línea.
+
 ### Fase 3 — Roles LLM y experiencia
 
 - Skill de Claude Code para el equipo con el flujo Analyst → Strategist (confirmación en chat o
   en una página local) → Executor → QA con revisión de capturas.
-- Entrada = PBIP/PBIX existente ("re-tematizar", "auditar", "añadir página").
+- Entrada = PBIP existente ("re-tematizar", "auditar", "añadir página"). Un PBIX **no** es entrada
+  automatizable: Microsoft no permite convertir PBIX↔PBIP por programa, solo con *Guardar como* en
+  Desktop. La precondición documentada para PBIX es convertirlo antes a PBIP.
 - Empaquetado para el equipo: instalación con un comando, `doctor` de prerrequisitos, ejemplo
   completo, guía de uso.
 
@@ -160,9 +221,9 @@ Objetivo: comprobar a mano los dos puntos que lo pueden tumbar todo.
 
 | # | Riesgo | Impacto | Mitigación |
 |---|---|---|---|
-| L1 | `pbir-cli` es no comercial; el uso en SoftwareOne/clientes lo excluye como dependencia | Legal | Prototipar con él en Fase 0 si acelera; construir sobre las CLIs MIT de Microsoft + JSON Schema oficial |
+| L1 | `pbir-cli` es no comercial y su licencia cuenta la consultoría de pago como uso comercial | Legal | Excluido de todas las fases, incluido el spike. Base: CLIs MIT de Microsoft (catálogo + validación + puente Desktop) + JSON Schema oficial + emisor propio |
 | T1 | El puente de Desktop es preview y puede fallar por políticas de la máquina corporativa | Sin bucle visual local | Se prueba en Fase 0; plan B = publicar + export API |
-| T2 | PBIR aún no GA: el esquema puede cambiar entre versiones de Desktop | Regeneraciones rotas | Fijar versión de esquema en `spec_lock`; validar contra el JSON Schema de la versión instalada |
+| T2 | PBIR y el propio guardado PBIP siguen marcados *preview* en la documentación (17-sep-2026); el esquema puede cambiar entre versiones de Desktop | Regeneraciones rotas | Fijar versión de esquema en `spec_lock`; validar contra el JSON Schema de la versión instalada |
 | T3 | Rutas absolutas en M para ficheros locales | PBIP no portable | Parámetro `DataFolder` en el modelo; el generador lo rellena |
 | T4 | Solo Windows (Desktop) | Sin CI en Linux | Aceptado en local; la fase 4 desacopla con Fabric |
 | P1 | Plugins registrados pero no cargados (`plugins/cache` ausente) | Se pierde conocimiento ya instalado | Reinstalar antes de la Fase 0 |
