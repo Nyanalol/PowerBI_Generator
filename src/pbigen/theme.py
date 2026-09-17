@@ -38,7 +38,7 @@ class BrandFonts(BaseModel):
 
     family: str = "Segoe UI"
     family_bold: str | None = None
-    title_size: int = 13
+    title_size: int = 14
     label_size: int = 11  # ejes, leyendas y tablas: 10 pt se lee mal en pantalla grande
     callout_size: int = 40  # la cifra de una tarjeta manda; con 32 pt sobraba espacio vacío
 
@@ -145,6 +145,9 @@ def _theme_body(brand: Brand) -> dict:
                             "backColor": {"solid": {"color": "#F3F2F1"}},
                             "alignment": "Right",
                             "outlineWeight": 0,
+                            # La matriz deja hueco a la derecha si las columnas solo miden su contenido
+                            "columnAdjustment": "growToFit",
+                            "autoSizeColumnWidth": True,
                         }
                     ],
                     "rowHeaders": [{"fontSize": f.label_size, "stepped": True, "outlineWeight": 0}],

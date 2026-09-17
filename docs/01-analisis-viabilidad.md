@@ -326,10 +326,20 @@ Lo aprendido, ya incorporado al código o a `check`:
   calculadas donde valga una medida, sin `FILTER` sobre tablas enteras, tablas de fechas
   marcadas, claves ocultas, formato y descripción en toda medida. Se comprueban con las reglas
   BPA de Tabular Editor y con `check`, y las que sean medibles (tiempo por consulta) con `test`.
-- Perímetro v2 del emisor, por orden de demanda real: **filtros de informe y de página**,
-  **roles RLS** con sus tests por rol, parámetros de campo, formato condicional, líneas de
-  referencia, Top N en rankings, sinónimos para Copilot y tooltips. Siempre entre fases, nunca a
-  mitad de una.
+- **Perímetro v2 del emisor**, por orden de demanda real. Es lo que falta para que la base sea
+  potente de verdad; cada cliente solo debería tener que aportar su identidad y sus datos:
+  1. **Filtros de informe y de página** (hoy todo se hace con slicers, que ocupan lienzo).
+  2. **Roles RLS** con sus tests por rol.
+  3. **Formato condicional por regla**: una barra negativa en rojo dentro de un gráfico, semáforos
+     en la matriz, barras de datos en celdas.
+  4. **Más tipos de visual**: KPI con objetivo, anillo, treemap, dispersión, cascada, embudo, tabla
+     (`tableEx`), medidor y mapa. Y, cuando el contexto lo pida de verdad, **visuales
+     personalizados** (Deneb o `.pbiviz` certificados), con su fichero registrado en el informe.
+  5. **Top N y filtros por visual** para que un ranking no se convierta en una lista con scroll.
+  6. **Parámetros de campo** para alternar medida o dimensión en un mismo gráfico.
+  7. Líneas de referencia, tooltips de página, botones y marcadores de navegación.
+  8. Sinónimos por objeto para Copilot.
+  Siempre entre fases, nunca a mitad de una.
 - Modo revisar con correcciones: catálogo cerrado de operaciones de parche sobre un PBIP ajeno
   (cambiar tema, añadir descripción y formato a medidas, corregir un binding roto, añadir una
   página generada) que preservan byte a byte lo que no tocan. Nada de reescribir el PBIP entero.

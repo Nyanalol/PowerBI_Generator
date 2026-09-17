@@ -21,8 +21,10 @@ Summarize = Literal["none", "sum", "count", "min", "max", "average"]
 VisualType = Literal["textbox", "card", "line", "column", "bar", "matrix", "slicer"]
 
 CANVAS_W, CANVAS_H = 1280, 720
-# 12 columnas x 8 filas: fila de 79 px (>= 76 px que exige un slicer desplegable con cabecera)
-GRID_COLS, GRID_ROWS, GRID_MARGIN, GRID_GUTTER = 12, 8, 16, 8
+# 12 columnas x 12 filas: fila de 50 px. Con 8 filas la unidad mínima era 79 px y todo salía
+# demasiado alto (una tarjeta ocupaba 166 px para 80 px de contenido). Los elementos que necesitan
+# más alto piden dos filas: un slicer desplegable (76 px mínimo) o una tarjeta caben en 108 px.
+GRID_COLS, GRID_ROWS, GRID_MARGIN, GRID_GUTTER = 12, 12, 16, 8
 
 
 class StrictModel(BaseModel):

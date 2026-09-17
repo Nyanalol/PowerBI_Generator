@@ -63,28 +63,28 @@ report:
   pages:
     - name: Resumen
       visuals:
-        - { type: textbox, name: titulo, text: "Resumen de ventas", font_size_pt: 22, grid: { col: 0, row: 0, cols: 8, rows: 1 } }
-        - { type: slicer, name: f_anio, field: "Fechas[Año]", mode: dropdown, title: Año, grid: { col: 8, row: 0, cols: 2, rows: 1 } }
-        - { type: slicer, name: f_region, field: "Clientes[Region]", mode: dropdown, title: Región, grid: { col: 10, row: 0, cols: 2, rows: 1 } }
-        - { type: card, name: kpi_importe, measure: "Ventas[Importe Total]", title: Importe total, grid: { col: 0, row: 1, cols: 3, rows: 2 } }
-        - { type: card, name: kpi_ytd, measure: "Ventas[Importe YTD]", title: Importe YTD, grid: { col: 3, row: 1, cols: 3, rows: 2 } }
-        - { type: card, name: kpi_var, measure: "Ventas[Crecimiento Anual %]", title: Crecimiento último año, grid: { col: 6, row: 1, cols: 3, rows: 2 } }
-        - { type: card, name: kpi_unidades, measure: "Ventas[Unidades Totales]", title: Unidades, grid: { col: 9, row: 1, cols: 3, rows: 2 } }
-        - { type: line, name: tendencia, title: Importe mensual, category: "Fechas[AñoMes]", values: ["Ventas[Importe Total]", "Ventas[Importe PY]"], grid: { col: 0, row: 3, cols: 8, rows: 3 } }
-        - { type: bar, name: por_region, title: Importe por región, category: "Clientes[Region]", values: ["Ventas[Importe Total]"], grid: { col: 8, row: 3, cols: 4, rows: 3 } }
-        - { type: column, name: por_categoria, title: Importe por categoría, category: "Productos[Categoria]", values: ["Ventas[Importe Total]"], grid: { col: 0, row: 6, cols: 6, rows: 2 } }
-        - { type: column, name: por_producto, title: Unidades por producto, category: "Productos[Producto]", values: ["Ventas[Unidades Totales]"], grid: { col: 6, row: 6, cols: 6, rows: 2 } }
+        - { type: textbox, name: titulo, text: "Resumen de ventas", font_size_pt: 20, grid: { col: 0, row: 0, cols: 8, rows: 2 } }
+        - { type: slicer, name: f_anio, field: "Fechas[Año]", mode: dropdown, title: Año, grid: { col: 8, row: 0, cols: 2, rows: 2 } }
+        - { type: slicer, name: f_region, field: "Clientes[Region]", mode: dropdown, title: Región, grid: { col: 10, row: 0, cols: 2, rows: 2 } }
+        - { type: card, name: kpi_importe, measure: "Ventas[Importe Total]", title: Importe total, accent: primary, grid: { col: 0, row: 2, cols: 3, rows: 2 } }
+        - { type: card, name: kpi_ytd, measure: "Ventas[Importe YTD]", title: Importe YTD, accent: primary, grid: { col: 3, row: 2, cols: 3, rows: 2 } }
+        - { type: card, name: kpi_var, measure: "Ventas[Crecimiento Anual %]", title: Crecimiento último año, accent: positive, grid: { col: 6, row: 2, cols: 3, rows: 2 } }
+        - { type: card, name: kpi_unidades, measure: "Ventas[Unidades Totales]", title: Unidades, accent: neutral, grid: { col: 9, row: 2, cols: 3, rows: 2 } }
+        - { type: line, name: tendencia, title: Importe mensual, category: "Fechas[AñoMes]", values: ["Ventas[Importe Total]", "Ventas[Importe PY]"], grid: { col: 0, row: 4, cols: 8, rows: 4 } }
+        - { type: bar, name: por_region, title: Importe por región, category: "Clientes[Region]", values: ["Ventas[Importe Total]"], accent: primary, data_labels: true, grid: { col: 8, row: 4, cols: 4, rows: 4 } }
+        - { type: column, name: por_categoria, title: Importe por categoría, category: "Productos[Categoria]", values: ["Ventas[Importe Total]"], accent: secondary, data_labels: true, grid: { col: 0, row: 8, cols: 6, rows: 4 } }
+        - { type: column, name: por_producto, title: Unidades por producto, category: "Productos[Producto]", values: ["Ventas[Unidades Totales]"], accent: neutral, data_labels: true, grid: { col: 6, row: 8, cols: 6, rows: 4 } }
 
     - name: Tendencia
       visuals:
-        - { type: textbox, name: titulo, text: "Tendencia mensual y comparación anual", font_size_pt: 22, grid: { col: 0, row: 0, cols: 9, rows: 1 } }
-        - { type: slicer, name: f_categoria, field: "Productos[Categoria]", mode: dropdown, title: Categoría, grid: { col: 9, row: 0, cols: 3, rows: 1 } }
-        - { type: line, name: mensual, title: Importe mensual vs año anterior, category: "Fechas[AñoMes]", values: ["Ventas[Importe Total]", "Ventas[Importe PY]"], grid: { col: 0, row: 1, cols: 12, rows: 4 } }
-        - { type: column, name: por_mes, title: Importe por mes, category: "Fechas[Mes]", series: "Fechas[Año]", values: ["Ventas[Importe Total]"], grid: { col: 0, row: 5, cols: 12, rows: 3 } }
+        - { type: textbox, name: titulo, text: "Tendencia mensual y comparación anual", font_size_pt: 20, grid: { col: 0, row: 0, cols: 9, rows: 2 } }
+        - { type: slicer, name: f_categoria, field: "Productos[Categoria]", mode: dropdown, title: Categoría, grid: { col: 9, row: 0, cols: 3, rows: 2 } }
+        - { type: line, name: mensual, title: Importe mensual frente al año anterior, category: "Fechas[AñoMes]", values: ["Ventas[Importe Total]", "Ventas[Importe PY]"], grid: { col: 0, row: 2, cols: 12, rows: 6 } }
+        - { type: column, name: por_mes, title: Importe por mes y año, category: "Fechas[Mes]", series: "Fechas[Año]", values: ["Ventas[Importe Total]"], grid: { col: 0, row: 8, cols: 12, rows: 4 } }
 
     - name: Detalle
       visuals:
-        - { type: textbox, name: titulo, text: "Detalle por cliente y producto", font_size_pt: 22, grid: { col: 0, row: 0, cols: 8, rows: 1 } }
+        - { type: textbox, name: titulo, text: "Detalle por cliente y producto", font_size_pt: 20, grid: { col: 0, row: 0, cols: 8, rows: 2 } }
         - { type: slicer, name: f_segmento, field: "Clientes[Segmento]", mode: list, title: Segmento, grid: { col: 8, row: 0, cols: 4, rows: 2 } }
-        - { type: matrix, name: tabla, title: Importe por cliente y categoría, rows: ["Clientes[Region]", "Clientes[Cliente]"], columns: ["Productos[Categoria]"], values: ["Ventas[Importe Total]", "Ventas[Unidades Totales]", "Ventas[Ticket Medio]"], grid: { col: 0, row: 1, cols: 8, rows: 7 } }
-        - { type: bar, name: top_clientes, title: Importe por cliente, category: "Clientes[Cliente]", values: ["Ventas[Importe Total]"], grid: { col: 8, row: 2, cols: 4, rows: 6 } }
+        - { type: matrix, name: tabla, title: Importe por cliente y categoría, rows: ["Clientes[Region]", "Clientes[Cliente]"], columns: ["Productos[Categoria]"], values: ["Ventas[Importe Total]", "Ventas[Unidades Totales]", "Ventas[Ticket Medio]"], grid: { col: 0, row: 2, cols: 8, rows: 10 } }
+        - { type: bar, name: top_clientes, title: Importe por cliente, category: "Clientes[Cliente]", values: ["Ventas[Importe Total]"], accent: primary, data_labels: true, grid: { col: 8, row: 2, cols: 4, rows: 10 } }
