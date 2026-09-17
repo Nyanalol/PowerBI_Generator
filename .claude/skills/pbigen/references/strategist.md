@@ -34,9 +34,9 @@ report:
   pages:
     - name: Resumen                                 # nombre estable; display_name opcional
       visuals:
-        - { type: textbox, name: titulo, text: "...", font_size_pt: 22, grid: { col: 0, row: 0, cols: 8, rows: 1 } }
-        - { type: slicer, name: f_anio, field: "Fechas[Año]", mode: dropdown, title: Año, grid: { col: 8, row: 0, cols: 2, rows: 1 } }
-        - { type: card, name: kpi_1, measure: "Hecho[Importe Total]", title: Ventas, grid: { col: 0, row: 1, cols: 3, rows: 2 } }
+        - { type: textbox, name: titulo, text: "...", subtitle: "...", font_size_pt: 26, x: 34, y: 14, w: 700, h: 82 }
+        - { type: slicer, name: f_anio, field: "Fechas[Año]", mode: dropdown, title: Año, grid: { col: 8, row: 0, cols: 2, rows: 2 } }
+        - { type: card, name: kpi_1, measure: "Hecho[Importe Total]", title: Ventas, accent: primary, emphasis: true, grid: { col: 0, row: 2, cols: 4, rows: 3 } }
         - { type: line, name: tendencia, title: ..., category: "Fechas[AñoMes]", values: ["Hecho[Importe Total]", "Hecho[Importe PY]"], grid: {...} }
         - { type: bar, name: por_region, title: ..., category: "Dim[Region]", values: ["Hecho[Importe Total]"], grid: {...} }
         - { type: column, name: por_mes, title: ..., category: "Fechas[Mes]", series: "Fechas[Año]", values: [...], sort: category, grid: {...} }
@@ -59,13 +59,20 @@ devuelve un HEX, `accent` semántico, `data_labels`, `emphasis` en el KPI princi
 
 Reglas duras que el validador del spec impone: `measure` y `values` son medidas; `category`,
 `series`, `field`, `rows`, `columns` son columnas; toda referencia `Tabla[Campo]` debe existir;
-nombres de visual únicos por página; `grid` dentro de 12×8 (o `x/y/w/h` en píxeles, no ambos).
+nombres de visual únicos por página; `grid` dentro de 12x16 (o `x/y/w/h` en píxeles, no ambos).
 
-## Rejilla 12×8 (1280×720, fila de 79 px)
+## Retícula 12x16 (1280x720, columna de 96 px, fila de 35,5 px)
 
-- Fila 0: título (`cols` 8) + slicers (`cols` 2 cada uno, `rows` 1).
-- Tarjetas: `rows: 2` (con menos no cabe el valor). Cuatro tarjetas = `cols: 3` cada una.
-- Gráficos: `rows` ≥ 3. Matriz: `rows` ≥ 6.
+Bandas fijas: cabecera filas 0-1 (79 px), KPIs filas 2-4 (114 px), zona principal filas 5-10
+(249 px) y zona secundaria filas 11-15 (213 px).
+
+- La cabecera se coloca en píxeles, no en la retícula: barra de acento en `x: 16, y: 18, w: 4,
+  h: 44` y cuadro de texto en `x: 34, y: 14, w: 700, h: 82`. Los segmentadores sí van en retícula
+  (`row: 0, rows: 2`), que es el mínimo de 76 px que necesitan.
+- Tarjetas: `rows: 3`. Entre dos y cinco por página, repartiendo el ancho (3 columnas si son
+  cuatro, 4 si son tres, 6 si son dos). Sin cuota fija.
+- Un visual dominante por página con el 35-45 % del área analítica.
+- Composición distinta entre páginas consecutivas: 8+4, 7+5, 6+6 o un bloque de 12.
 - Sin solapes: `check` los detecta, pero es más barato no crearlos.
 
 ## Tests

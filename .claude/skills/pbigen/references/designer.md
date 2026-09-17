@@ -44,13 +44,29 @@ memoria:
 
 | Elemento | Qué se aplica |
 |---|---|
-| Tarjetas KPI | Etiqueta arriba y cifra a 40 pt debajo, franja de color a la izquierda con el color del KPI, una sola caja (se apagan borde y fondo del contenedor) |
+| Tarjetas KPI | Etiqueta arriba y cifra a 32 pt debajo (36 la principal), franja de color a la izquierda con el color del KPI, una sola caja (se apagan borde y fondo del contenedor) |
 | Líneas | Trazo de 3 px con marcadores circulares; sin marcador el trazo fino parece un borrador |
 | Barras y columnas | Barras más gruesas (`innerPadding` 25), sin borde, esquinas redondeadas, etiquetas de datos fuera del extremo |
 | Matriz | Filas alternas, sin rejilla vertical, rejilla horizontal suave, cabecera con fondo y alineada a la derecha, total en negrita, interlineado apretado |
 | Slicers | Cabecera discreta en negrita, elementos a 11 pt con relleno |
 | Ejes | Sin títulos, sin rejilla en el eje de categorías, punteada en el de valores, 11 pt |
 | Página | Fondo gris muy claro para que los visuales blancos destaquen |
+
+## Cuántos KPIs, y cuáles
+
+No hay cuota. Cada página lleva **entre dos y cinco** tarjetas, y el número lo decide el contenido:
+si la página solo tiene tres cifras que merezcan tarjeta, se ponen tres y se reparte el ancho entre
+ellas (4 columnas cada una en vez de 3).
+
+Un KPI se gana su sitio si responde a la pregunta de **esa** página. Señales de que sobra:
+
+- **Se repite en todas las páginas.** Una cifra global (las ventas totales) va en la página de
+  resumen; repetirla en las otras tres es relleno, y encima el lector la cuenta como información
+  nueva. Si hace falta como contexto, que esté en la matriz o en el título, no en una tarjeta.
+- **Es una variante de otra de la misma fila** (importe e importe acumulado juntos sin comparación).
+- **No cambia cuando el usuario mueve los filtros de la página.**
+
+La primera tarjeta es la principal: lleva `emphasis: true` y va a la izquierda.
 
 ## El color dice algo o no se usa
 

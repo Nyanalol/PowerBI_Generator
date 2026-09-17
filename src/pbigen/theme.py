@@ -120,7 +120,7 @@ def _theme_body(brand: Brand) -> dict:
                 "*": {
                     "grid": [
                         {
-                            "rowPadding": 5,
+                            "rowPadding": 3,  # con 5 la matriz perdia la ultima fila en una banda de 213 px
                             "textSize": f.label_size,
                             "gridVertical": False,
                             "gridHorizontal": True,
