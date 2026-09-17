@@ -35,6 +35,41 @@ granularidad (mes a trimestre) o de dimensión (estado a región).
   y coloca algo útil al lado, o acepta el hueco, pero no la declares a 12 columnas para que se vea
   medio lienzo vacío.
 
+## Lo que el generador ya customiza (y por qué)
+
+Nada se deja en los valores por defecto de Power BI: el aspecto por defecto delata un informe sin
+trabajar. El tema y el emisor aplican siempre esto, y la referencia de dónde sale cada propiedad es
+el catálogo de la CLI (`powerbi-report-author formatting describe-object <tipo> <objeto>`), nunca la
+memoria:
+
+| Elemento | Qué se aplica |
+|---|---|
+| Tarjetas KPI | Etiqueta arriba y cifra a 40 pt debajo, franja de color a la izquierda con el color del KPI, una sola caja (se apagan borde y fondo del contenedor) |
+| Líneas | Trazo de 3 px con marcadores circulares; sin marcador el trazo fino parece un borrador |
+| Barras y columnas | Barras más gruesas (`innerPadding` 25), sin borde, esquinas redondeadas, etiquetas de datos fuera del extremo |
+| Matriz | Filas alternas, sin rejilla vertical, rejilla horizontal suave, cabecera con fondo y alineada a la derecha, total en negrita, interlineado apretado |
+| Slicers | Cabecera discreta en negrita, elementos a 11 pt con relleno |
+| Ejes | Sin títulos, sin rejilla en el eje de categorías, punteada en el de valores, 11 pt |
+| Página | Fondo gris muy claro para que los visuales blancos destaquen |
+
+## El color dice algo o no se usa
+
+Un informe monocromo se lee como una tabla en color, y uno con ocho colores sin criterio, como un
+gráfico de feria. La regla: entre tres y cinco colores, cada uno con significado, y el resto en gris.
+Cada visual declara su `accent`:
+
+| `accent` | Para qué |
+|---|---|
+| `primary` | La magnitud principal del informe (ventas, ingresos) |
+| `secondary` | Una magnitud de apoyo (clientes, unidades) |
+| `positive` | Beneficio, margen, todo lo que sea bueno que suba |
+| `negative` | Pérdidas, devoluciones, incidencias |
+| `warning` | Lo que hay que vigilar: descuentos, plazos, retrasos |
+| `neutral` | Volúmenes sin carga (número de pedidos, filas) |
+
+Pendiente de emisor v2, y por eso hoy se anota en la entrega: colorear una barra negativa distinto
+de una positiva dentro del mismo gráfico (formato condicional por regla).
+
 ## Consistencia entre páginas
 
 - Los mismos slicers, en la misma posición, en todas las páginas.

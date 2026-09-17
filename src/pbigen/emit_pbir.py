@@ -16,7 +16,7 @@ from pathlib import Path
 from .ids import hex_id
 from .platform_file import write_platform
 from .spec import FieldRef, PageSpec, SpecLock, VisualSpec
-from .theme import build_theme, load_brand
+from .theme import accent_colors, build_theme, load_brand
 
 SCHEMA_BASE = "https://developer.microsoft.com/json-schemas/fabric"
 S_DEF_PROPS = f"{SCHEMA_BASE}/item/report/definitionProperties/2.0.0/schema.json"
@@ -52,6 +52,10 @@ def _num(value: float) -> dict:
 
 def _int(value: int) -> dict:
     return {"expr": {"Literal": {"Value": f"{value}L"}}}
+
+
+def _fill(hex_color: str) -> dict:
+    return {"solid": {"color": {"expr": {"Literal": {"Value": f"'{hex_color}'"}}}}}
 
 
 def _field(spec: SpecLock, ref: str) -> dict:
@@ -96,7 +100,13 @@ def _container_objects(v: VisualSpec) -> dict:
 
 
 def visual_json(
-    spec: SpecLock, page: PageSpec, v: VisualSpec, z: int, card_value_size: int = 40, card_label_size: int = 12
+    spec: SpecLock,
+    page: PageSpec,
+    v: VisualSpec,
+    z: int,
+    card_value_size: int = 40,
+    card_label_size: int = 12,
+    accents: dict[str, str] | None = None,
 ) -> dict:
     name = hex_id(spec.project, page.name, v.name)
     x, y, w, h = v.position(page.width, page.height)
@@ -131,6 +141,20 @@ def visual_json(
             "value": [{"properties": {"fontSize": _num(card_value_size)}}],
             "layout": [{"properties": {"paddingUniform": _int(2)}, "selector": {"id": "default"}}],
         }
+        accent_hex = (accents or {}).get(v.accent or "", None)
+        if accent_hex:
+            # Franja de color a la izquierda: da jerarquía y dice de qué habla la tarjeta
+            objects["accentBar"] = [
+                {
+                    "properties": {
+                        "show": _literal("true"),
+                        "position": _literal("'Left'"),
+                        "color": _fill(accent_hex),
+                        "width": _num(6),
+                    },
+                    "selector": {"id": "default"},
+                }
+            ]
         # La tarjeta dibuja su propia caja (cardCalloutArea). Con el borde y el fondo del contenedor
         # se ven dos marcos concéntricos, así que el contenedor se apaga y manda la caja interna.
         container_off = {
@@ -142,7 +166,13 @@ def visual_json(
             # (patrón recomendado por Microsoft; evita "Importe total" dos veces).
             objects["label"] = [
                 {
-                    "properties": {"show": _literal("true"), "text": _literal(f"'{v.title}'"), "fontSize": _num(card_label_size)},
+                    "properties": {
+                        "show": _literal("true"),
+                        "text": _literal(f"'{v.title}'"),
+                        "fontSize": _num(card_label_size),
+                        # Etiqueta arriba y cifra debajo: el patrón de KPI que llena la caja
+                        "position": _literal("'aboveValue'"),
+                    },
                     "selector": {"id": "default"},
                 }
             ]
@@ -162,12 +192,16 @@ def visual_json(
             sort = _sort(spec, v.values[0], direction)
         visual["query"] = {"queryState": qs, "sortDefinition": sort}
         visual["drillFilterOtherVisuals"] = True
+        chart_objects: dict = {}
         if v.data_labels:
             # El valor va junto a la barra; el eje entonces sobra y su espacio pasa al gráfico
-            visual["objects"] = {
-                "labels": [{"properties": {"show": _literal("true")}}],
-                "valueAxis": [{"properties": {"show": _literal("false")}}],
-            }
+            chart_objects["labels"] = [{"properties": {"show": _literal("true")}}]
+            chart_objects["valueAxis"] = [{"properties": {"show": _literal("false")}}]
+        accent_hex = (accents or {}).get(v.accent or "", None)
+        if accent_hex and not v.series:
+            chart_objects["dataPoint"] = [{"properties": {"defaultColor": _fill(accent_hex)}}]
+        if chart_objects:
+            visual["objects"] = chart_objects
     elif v.type == "matrix":
         qs = {"Rows": _role(spec, v.rows, active_first=True), "Values": _role(spec, v.values)}
         if v.columns:
@@ -251,6 +285,7 @@ def write_report(spec: SpecLock, out_dir: Path) -> Path:
 
     custom_theme: str | None = None
     card_value, card_label = 40, 12
+    brand = None
     if spec.report.theme.brand:
         brand = load_brand(spec.report.theme.brand)
         card_value, card_label = brand.fonts.callout_size, brand.fonts.label_size + 1
@@ -258,6 +293,7 @@ def write_report(spec: SpecLock, out_dir: Path) -> Path:
         _dump(rp / "StaticResources" / "RegisteredResources" / custom_theme, tdoc)
     _dump(d / "report.json", report_json(custom_theme))
 
+    accents = accent_colors(brand)
     page_ids = [hex_id(spec.project, p.name) for p in spec.report.pages]
     _dump(d / "pages" / "pages.json", {"$schema": S_PAGES, "pageOrder": page_ids, "activePageName": page_ids[0]})
     for p in spec.report.pages:
@@ -265,7 +301,9 @@ def write_report(spec: SpecLock, out_dir: Path) -> Path:
         _dump(pdir / "page.json", page_json(spec, p))
         (pdir / "visuals").mkdir(parents=True, exist_ok=True)
         for i, v in enumerate(p.visuals):
-            doc = visual_json(spec, p, v, z=(i + 1) * 1000, card_value_size=card_value, card_label_size=card_label)
+            doc = visual_json(
+                spec, p, v, z=(i + 1) * 1000, card_value_size=card_value, card_label_size=card_label, accents=accents
+            )
             _dump(pdir / "visuals" / doc["name"] / "visual.json", doc)
     themes = rp / "StaticResources" / "SharedResources" / "BaseThemes"
     themes.mkdir(parents=True, exist_ok=True)

@@ -203,6 +203,8 @@ class VisualSpec(StrictModel):
     sort_direction: Literal["auto", "asc", "desc"] = "auto"
     # Con pocas barras, el número junto al dato sustituye al eje de valores y aprovecha el ancho
     data_labels: bool = False
+    # El color dice de qué habla el visual; no decora. Se resuelve contra la identidad del cliente
+    accent: Literal["primary", "secondary", "positive", "negative", "warning", "neutral"] | None = None
     # matrix
     rows: list[str] = []
     columns: list[str] = []

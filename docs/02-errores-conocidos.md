@@ -42,6 +42,8 @@ Entorno de referencia: Windows 11, Power BI Desktop 2.157.1354.0 (Store), esquem
 | R15 | El tema no cambia nada en las tarjetas | Los objetos con selector (`label`, `layout`, `padding`) exigen `"$id": "default"` en el tema, y aun así la tarjeta ignora varios; PBIR además codifica los números como `40D` (decimal) y `4L` (entero) | El emisor escribe tamaño de cifra, relleno y etiqueta en el propio `visual.json` con literales verificados con `powerbi-report-author expr encode` |
 | R16 | La tarjeta muestra dos marcos concéntricos | La tarjeta dibuja su propia caja (`cardCalloutArea`) además del borde y el fondo del contenedor | El emisor apaga borde y fondo del contenedor en las tarjetas |
 | R17 | Un cambio de tema no se ve tras `pbigen reload` | El puente recarga la definición del informe, no el tema | `pbigen open` (cierra y reabre) cuando se toca `brand.yaml` o `theme.py` |
+| R18 | El informe se ve monótono y "por defecto" | Sin `accent` los visuales usan el primer color del tema, y sin customización por tipo el aspecto es el de fábrica | `accent` semántico por visual + capa de diseño en `theme.py` por tipo de visual; ver `designer.md` |
+| R19 | La caja de un KPI es enorme y el texto ocupa un tercio | Etiqueta debajo del valor y cifra pequeña dejan la mitad de la caja vacía | Etiqueta arriba (`label.position: aboveValue`), cifra a 40 pt y franja de acento |
 | R14 | Un ranking esconde lo importante al final de la lista | Orden descendente por defecto: las pérdidas quedan abajo, fuera del scroll | `sort_direction: asc` pone lo peor arriba |
 
 ## 3. Entorno, Desktop y puente

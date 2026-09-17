@@ -86,7 +86,8 @@ def _theme_body(brand: Brand) -> dict:
         "visualStyles": {
             "*": {
                 "*": {
-                    "*": [{"fontFamily": f.family}],
+                    # Esquinas redondeadas en contenedores y barras: el aspecto por defecto es de 2015
+                    "*": [{"fontFamily": f.family, "wordWrap": False, "rectangleRoundedCurve": brand.card_radius, "roundEdge": 6}],
                     "title": [{"show": True, "fontFamily": bold, "fontSize": f.title_size, "fontColor": {"solid": {"color": c.foreground}}}],
                     "background": [{"show": True, "color": {"solid": {"color": c.background}}, "transparency": 0}],
                     "border": [{"show": True, "color": {"solid": {"color": "#E1DFDD"}}, "radius": brand.card_radius}],
@@ -113,17 +114,95 @@ def _theme_body(brand: Brand) -> dict:
                     "layout": [{"$id": "default", "paddingUniform": 4, "borderWidth": 0, "customizeLines": False}],
                 }
             },
-            # La matriz gana filas visibles apretando el interlineado
+            # La matriz gana filas visibles apretando el interlineado, y se lee mejor con filas
+            # alternas, sin rejilla vertical y con la cabecera y el total marcados
             "pivotTable": {
                 "*": {
-                    "grid": [{"rowPadding": 2, "textSize": f.label_size}],
-                    "values": [{"fontSize": f.label_size}],
-                    "columnHeaders": [{"fontSize": f.label_size, "fontFamily": bold}],
-                    "rowHeaders": [{"fontSize": f.label_size}],
+                    "grid": [
+                        {
+                            "rowPadding": 3,
+                            "textSize": f.label_size,
+                            "gridVertical": False,
+                            "gridHorizontal": True,
+                            "gridHorizontalColor": {"solid": {"color": "#EDEBE9"}},
+                            "gridHorizontalWeight": 1,
+                            "outlineWeight": 0,
+                        }
+                    ],
+                    "values": [
+                        {
+                            "fontSize": f.label_size,
+                            "bandedRowHeaders": True,
+                            "backColorSecondary": {"solid": {"color": "#FAFAFA"}},
+                            "outlineWeight": 0,
+                        }
+                    ],
+                    "columnHeaders": [
+                        {
+                            "fontSize": f.label_size,
+                            "fontFamily": bold,
+                            "fontColor": {"solid": {"color": c.foreground}},
+                            "backColor": {"solid": {"color": "#F3F2F1"}},
+                            "alignment": "Right",
+                            "outlineWeight": 0,
+                        }
+                    ],
+                    "rowHeaders": [{"fontSize": f.label_size, "stepped": True, "outlineWeight": 0}],
+                    "total": [{"fontSize": f.label_size, "bold": True, "fontColor": {"solid": {"color": c.foreground}}}],
                 }
             },
-            "page": {"*": {"background": [{"color": {"solid": {"color": "#F5F5F5"}}, "transparency": 0}]}},
+            # La línea por defecto es fina y sin marcadores: con 16 puntos se lee mejor gruesa
+            "lineChart": {
+                "*": {
+                    "lineStyles": [{"strokeWidth": 3, "lineStyle": "solid", "showMarker": True, "markerShape": "circle", "markerSize": 4}],
+                }
+            },
+            # Barras y columnas: más gruesas (menos hueco entre ellas) y sin borde
+            "clusteredColumnChart": {
+                "*": {
+                    "categoryAxis": [{"innerPadding": 25, "maxMarginFactor": 35}],
+                    "dataPoint": [{"borderShow": False}],
+                    "labels": [{"fontSize": f.label_size, "labelPosition": "OutsideEnd", "enableBackground": False}],
+                }
+            },
+            "clusteredBarChart": {
+                "*": {
+                    "categoryAxis": [{"innerPadding": 25, "maxMarginFactor": 35}],
+                    "dataPoint": [{"borderShow": False}],
+                    "labels": [{"fontSize": f.label_size, "labelPosition": "OutsideEnd", "enableBackground": False}],
+                }
+            },
+            # El slicer es un control, no un gráfico: cabecera discreta y sin caja alrededor
+            "slicer": {
+                "*": {
+                    "header": [{"show": True, "fontFamily": bold, "textSize": f.label_size, "fontColor": {"solid": {"color": c.secondary}}}],
+                    "items": [{"textSize": f.label_size, "fontColor": {"solid": {"color": c.foreground}}, "padding": 4}],
+                }
+            },
+            "page": {"*": {"background": [{"color": {"solid": {"color": "#F7F8FA"}}, "transparency": 0}]}},
         },
+    }
+
+
+def accent_colors(brand: Brand | None) -> dict[str, str]:
+    """Nombres semánticos a HEX. Un informe usa pocos colores y cada uno significa algo."""
+    if brand is None:
+        return {
+            "primary": "#118DFF",
+            "secondary": "#12239E",
+            "positive": "#1AAB40",
+            "negative": "#D64550",
+            "warning": "#D9B300",
+            "neutral": "#605E5C",
+        }
+    c = brand.colors
+    return {
+        "primary": c.data[0],
+        "secondary": c.data[1] if len(c.data) > 1 else c.accent,
+        "positive": c.good,
+        "negative": c.bad,
+        "warning": c.neutral,
+        "neutral": c.secondary,
     }
 
 
