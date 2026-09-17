@@ -1,4 +1,4 @@
-# PowerBI Generator — análisis de viabilidad y plan
+# PowerBI Generator: análisis de viabilidad y plan
 
 Fecha: 2026-09-17. Estado: revisado tras dos rondas de auditoría cruzada. Ronda 1: licencia,
 papel real de la CLI de Microsoft, formato por visual, plan B de capturas, unidad de entrega,
@@ -205,7 +205,7 @@ brief + datos → [1] Perfilado → [2] Analyst: propuesta de modelo (estrella, 
 
 ## 5. Plan por fases (de sencillo a complejo)
 
-### Fase 0 — Spike de desriesgo (1 sesión)
+### Fase 0. Spike de desriesgo (1 sesión)
 
 Objetivo: comprobar a mano los dos puntos que lo pueden tumbar todo.
 - Instalar Node + CLIs de Microsoft; activar el puente en Desktop.
@@ -240,7 +240,7 @@ página con las tarjetas renderizadas. Lo aprendido, ya incorporado al código:
 - El puente de Desktop solo responde con Desktop abierto; `doctor` lo indica como "no conectado"
   si no hay ninguna instancia, aunque la preview esté activada.
 
-### Fase 1 — Esqueleto del generador
+### Fase 1. Esqueleto del generador
 
 - `project_manager.py init/validate`, `profile_data.py`, `spec_lock.yaml` v1 (una tabla, N medidas,
   1 página), `generate_model.py`, `generate_report.py`, `quality_check.py` (esquema + campos).
@@ -257,7 +257,7 @@ datos, salidas, capturas y caché conservando spec, brief y tests. Dos correccio
 ejecutarlo: detección de fechas en el perfil por tipo real de pandas, y salida UTF-8 forzada en
 el puente PowerShell del motor (las tildes de los valores DAX llegaban mal codificadas).
 
-### Fase 2 — Modelo real y librerías
+### Fase 2. Modelo real y librerías
 
 - Estrella multi-tabla, tabla de fechas generada, relaciones, patrones de medidas (time intelligence).
 - Multi-página, slicers, tema desde identidad corporativa (librería propia de temas; se puede
@@ -288,7 +288,7 @@ Lo aprendido, ya incorporado al código o a `check`:
   dos años contra uno (109,8 %). Es el tipo de error que el rol Data Analyst de la Fase 3 debe
   detectar; de momento la tarjeta usa `Crecimiento Anual %` (último año contra el previo).
 
-### Fase 2b — Modo revisar, solo diagnóstico (en paralelo a la Fase 2; no depende del emisor)
+### Fase 2b. Modo revisar, solo diagnóstico (en paralelo a la Fase 2; no depende del emisor)
 
 - Lector de PBIP existente (TMDL + PBIR) → inventario: tablas, medidas, relaciones, páginas,
   visuales, campos usados y huérfanos.
@@ -309,7 +309,7 @@ Lo aprendido, ya incorporado al código o a `check`:
   para construcciones del subconjunto soportado) o bien operaciones de parche que preserven lo
   que el generador no entiende. Eso pertenece a la Fase 3.
 
-### Fase 3 — Roles LLM y experiencia
+### Fase 3. Roles LLM y experiencia
 
 - Skill de Claude Code para el equipo con el flujo Analyst → Strategist (confirmación en chat o
   en una página local) → Executor → QA con revisión de capturas.
@@ -326,8 +326,10 @@ Lo aprendido, ya incorporado al código o a `check`:
   calculadas donde valga una medida, sin `FILTER` sobre tablas enteras, tablas de fechas
   marcadas, claves ocultas, formato y descripción en toda medida. Se comprueban con las reglas
   BPA de Tabular Editor y con `check`, y las que sean medibles (tiempo por consulta) con `test`.
-- Perímetro v2 del emisor para servir a ese rol: parámetros de campo, formato condicional,
-  líneas de referencia, tooltips, filtros de página; siempre entre fases, nunca a mitad.
+- Perímetro v2 del emisor, por orden de demanda real: **filtros de informe y de página**,
+  **roles RLS** con sus tests por rol, parámetros de campo, formato condicional, líneas de
+  referencia, Top N en rankings, sinónimos para Copilot y tooltips. Siempre entre fases, nunca a
+  mitad de una.
 - Modo revisar con correcciones: catálogo cerrado de operaciones de parche sobre un PBIP ajeno
   (cambiar tema, añadir descripción y formato a medidas, corregir un binding roto, añadir una
   página generada) que preservan byte a byte lo que no tocan. Nada de reescribir el PBIP entero.
@@ -346,7 +348,20 @@ del contrato para que el LLM no adivine. Pendiente en esta fase: página local d
 emisor v2 (parámetros de campo, formato condicional, líneas de referencia, filtros de página,
 roles RLS) y empaquetado de entrega por lista blanca.
 
-### Fase 4 — Fabric
+**Prueba de punta a punta (2026-09-17): dataset público Superstore.** 9.994 líneas de pedido en un
+Excel plano de una sola hoja, el caso que más se parece a lo que entrega un cliente. La skill
+recorrió el flujo completo: perfilado, modelo en estrella con dos dimensiones **derivadas** de la
+hoja plana (`distinct_key` + `attributes`, agrupando en M), tabla de fechas, 16 medidas, 4 páginas y
+tema de cliente. Resultado: validación de Microsoft en verde, `check` sin hallazgos, **14 de 14
+tests DAX** contra duckdb, y cuatro páginas revisadas con el rol de diseñador. Lo que salió de esa
+revisión, ya incorporado como reglas: fuera los rankings con scroll (49 estados, 793 clientes van a
+la matriz), eje trimestral en vez de mensual cuando hay más de dos años, etiquetas de datos en lugar
+de eje en gráficos de pocas barras, presupuesto de filas por página, y tarjetas con una sola caja y
+cifra grande. Los fallos de emisor que destapó el dataset real (comillas en relaciones TMDL,
+identificadores M con guion, nombres de medida que chocan con tablas o columnas) están en
+`docs/02-errores-conocidos.md` con su test de regresión.
+
+### Fase 4. Fabric
 
 - Adaptadores SQL, Lakehouse / Direct Lake y modelo semántico existente (informe thin).
 - Despliegue con `fabric-cicd` o `fab`; capturas vía export API

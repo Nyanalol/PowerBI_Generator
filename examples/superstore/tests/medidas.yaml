@@ -1,0 +1,68 @@
+# Tests DAX contra el modelo abierto en Desktop; oráculo duckdb sobre la hoja Pedidos (nombres originales).
+- name: ventas totales
+  dax: EVALUATE ROW("v", [Ventas])
+  sql: SELECT SUM(Sales) FROM Pedidos
+
+- name: beneficio total
+  dax: EVALUATE ROW("v", [Beneficio])
+  sql: SELECT SUM(Profit) FROM Pedidos
+
+- name: pedidos distintos
+  dax: EVALUATE ROW("v", [Nº Pedidos])
+  sql: SELECT COUNT(DISTINCT "Order ID") FROM Pedidos
+
+- name: clientes activos
+  dax: EVALUATE ROW("v", [Clientes Activos])
+  sql: SELECT COUNT(DISTINCT "Customer ID") FROM Pedidos
+
+- name: margen total
+  dax: EVALUATE ROW("v", [Margen %])
+  sql: SELECT SUM(Profit) / SUM(Sales) FROM Pedidos
+  tolerance: 0.0001
+
+- name: ventas por región (atributo del hecho)
+  dax: EVALUATE SUMMARIZECOLUMNS(Pedidos[Región], "v", [Ventas])
+  sql: SELECT Region, SUM(Sales) FROM Pedidos GROUP BY Region
+
+- name: ventas por categoría (dimensión Productos derivada)
+  dax: EVALUATE SUMMARIZECOLUMNS(Productos[Categoría], "v", [Ventas])
+  sql: >
+    SELECT p.cat, SUM(s.Sales) FROM Pedidos s
+    JOIN (SELECT "Product ID" AS pid, FIRST(Category) AS cat FROM Pedidos GROUP BY 1) p ON s."Product ID" = p.pid
+    GROUP BY p.cat
+
+- name: ventas por segmento (dimensión Clientes derivada)
+  dax: EVALUATE SUMMARIZECOLUMNS(Clientes[Segmento], "v", [Ventas])
+  sql: >
+    SELECT c.seg, SUM(s.Sales) FROM Pedidos s
+    JOIN (SELECT "Customer ID" AS cid, FIRST(Segment) AS seg FROM Pedidos GROUP BY 1) c ON s."Customer ID" = c.cid
+    GROUP BY c.seg
+
+- name: ventas por año (tabla de fechas)
+  dax: EVALUATE SUMMARIZECOLUMNS(Fechas[Año], "v", [Ventas])
+  sql: SELECT CAST(YEAR("Order Date") AS BIGINT), SUM(Sales) FROM Pedidos GROUP BY 1
+
+- name: YTD a 30 de junio de 2018
+  dax: EVALUATE CALCULATETABLE(ROW("v", [Ventas YTD]), Fechas[Fecha] = DATE(2018, 6, 30))
+  sql: SELECT SUM(Sales) FROM Pedidos WHERE "Order Date" >= '2018-01-01' AND "Order Date" <= '2018-06-30'
+
+- name: PY de marzo de 2018 es marzo de 2017
+  dax: EVALUATE CALCULATETABLE(ROW("v", [Ventas PY]), Fechas[AñoMes] = "2018-03")
+  sql: SELECT SUM(Sales) FROM Pedidos WHERE "Order Date" >= '2017-03-01' AND "Order Date" <= '2017-03-31'
+
+- name: crecimiento anual = 2018 vs 2017
+  dax: EVALUATE ROW("v", [Crecimiento Anual %])
+  sql: >
+    SELECT (SUM(CASE WHEN YEAR("Order Date")=2018 THEN Sales END) - SUM(CASE WHEN YEAR("Order Date")=2017 THEN Sales END))
+           / SUM(CASE WHEN YEAR("Order Date")=2017 THEN Sales END) FROM Pedidos
+  tolerance: 0.0001
+
+- name: plazo medio de envío en días
+  dax: EVALUATE ROW("v", [Plazo Medio Envío])
+  sql: SELECT AVG(date_diff('day', "Order Date", "Ship Date")) FROM Pedidos
+  tolerance: 0.001
+
+- name: descuento medio
+  dax: EVALUATE ROW("v", [Descuento Medio])
+  sql: SELECT AVG(Discount) FROM Pedidos
+  tolerance: 0.0001

@@ -97,13 +97,14 @@ def profile(
     """Perfila los orígenes (tipos, cardinalidad, nulos, rangos, claves) -> analysis/data_profile.json."""
     from .profile import profile_project
     from .project import load_brief
+    from .spec import load_sources
 
-    spec = load_spec(project_dir / "spec_lock.yaml")
+    sources = load_sources(project_dir / "spec_lock.yaml")  # en un proyecto nuevo solo existen los orígenes
     brief = load_brief(project_dir)
     if sample_rows > 0 and brief.data_classification in ("confidencial", "personal"):
         _bad(f"proyecto clasificado {brief.data_classification}: no se incluyen filas de muestra")
         sample_rows = 0
-    out = profile_project(project_dir, spec, sample_rows)
+    out = profile_project(project_dir, sources, sample_rows)
     _ok(f"perfil escrito en {out}")
 
 
@@ -137,7 +138,7 @@ def test(project_dir: Path) -> None:
         _bad("no hay tests en tests/*.yaml")
         raise typer.Exit(code=1)
     cfg = load_config()
-    results = run_tests(project_dir, spec, cfg.tools_path, cases)
+    results = run_tests(project_dir, spec, cfg.tools_path, cases, desktop_pid=_project_desktop_pid(cfg, project_dir))
     for r in results:
         (_ok if r.passed else _bad)(f"{r.name}" + (f"  {r.detail}" if r.detail else ""))
     failed = [r for r in results if not r.passed]
@@ -209,6 +210,13 @@ def open_(project_dir: Path) -> None:
     _ok(f"abriendo {pbip} con {d.launch_exe}")
 
 
+def _project_desktop_pid(cfg, project_dir: Path) -> int:  # type: ignore[no-untyped-def]
+    """PID de la instancia de Desktop que tiene abierto el PBIP del proyecto (0 si ninguna o varias)."""
+    spec = load_spec(project_dir / "spec_lock.yaml")
+    pids = _desktop_pids_with(cfg, (project_dir / "pbip" / f"{spec.project}.pbip").resolve())
+    return pids[0] if len(pids) == 1 else 0
+
+
 def _last_json_object(text: str) -> dict:
     """Último objeto JSON de una salida que puede llevar varios (la CLI imprime status y resultado)."""
     import json
@@ -244,7 +252,7 @@ def refresh(project_dir: Path) -> None:
     from .engine import refresh as _refresh
 
     cfg = load_config()
-    data = _refresh(cfg.tools_path)
+    data = _refresh(cfg.tools_path, desktop_pid=_project_desktop_pid(cfg, project_dir))
     _ok(f"actualizado catálogo {data['catalog']} en {data['ms']} ms (puerto {data['port']})")
 
 
@@ -254,7 +262,7 @@ def query(project_dir: Path, dax: str) -> None:
     from .engine import query as _query
 
     cfg = load_config()
-    data = _query(cfg.tools_path, dax)
+    data = _query(cfg.tools_path, dax, desktop_pid=_project_desktop_pid(cfg, project_dir))
     rows = data.get("rows") or []
     for row in rows:
         typer.echo("  ".join(f"{k}={v}" for k, v in row.items()))

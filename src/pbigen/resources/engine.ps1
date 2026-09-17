@@ -5,6 +5,7 @@ param(
     [Parameter(Mandatory = $true)][string]$Dll,
     [Parameter(Mandatory = $true)][ValidateSet("catalogs", "refresh", "query")][string]$Mode,
     [int]$Port = 0,
+    [int]$DesktopPid = 0,
     [string]$Catalog = "",
     [string]$Dax = ""
 )
@@ -16,6 +17,12 @@ try {
     if ($Port -eq 0) {
         $procs = Get-Process msmdsrv -ErrorAction SilentlyContinue
         if (-not $procs) { throw "no hay ningún msmdsrv.exe en ejecución: abre el PBIP en Power BI Desktop" }
+        if ($DesktopPid -ne 0) {
+            # El motor de una instancia concreta de Desktop es su msmdsrv hijo
+            $childIds = Get-CimInstance Win32_Process -Filter "Name='msmdsrv.exe' AND ParentProcessId=$DesktopPid" | Select-Object -ExpandProperty ProcessId
+            $procs = @($procs | Where-Object { $childIds -contains $_.Id })
+            if (-not $procs) { throw "la instancia de Desktop $DesktopPid no tiene motor msmdsrv (¿modelo sin cargar?)" }
+        }
         $ports = @()
         foreach ($p in $procs) {
             $ports += Get-NetTCPConnection -OwningProcess $p.Id -State Listen -ErrorAction SilentlyContinue |
@@ -33,8 +40,23 @@ try {
         exit 0
     }
     if (-not $Catalog) {
-        if ($cats.Count -ne 1) { throw "hay $($cats.Count) catálogos; indica -Catalog" }
-        $Catalog = $cats[0]
+        if ($cats.Count -eq 1) { $Catalog = $cats[0] }
+        else {
+            # Varios catálogos (p. ej. uno de una apertura fallida): el válido es el que tiene tablas
+            $best = $null; $bestN = -1
+            foreach ($cat in $cats) {
+                $cc = New-Object Microsoft.AnalysisServices.AdomdClient.AdomdConnection("Data Source=localhost:$Port;Initial Catalog=$cat")
+                try {
+                    $cc.Open()
+                    $q = $cc.CreateCommand(); $q.CommandText = 'SELECT [Name] FROM $SYSTEM.TMSCHEMA_TABLES'
+                    $rd = $q.ExecuteReader(); $n = 0; while ($rd.Read()) { $n++ }; $rd.Close()
+                    $cc.Close()
+                } catch { $n = -1 }
+                if ($n -gt $bestN) { $best = $cat; $bestN = $n }
+            }
+            if (-not $best) { throw "hay $($cats.Count) catálogos y ninguno responde; indica -Catalog" }
+            $Catalog = $best
+        }
     }
     $c = New-Object Microsoft.AnalysisServices.AdomdClient.AdomdConnection("Data Source=localhost:$Port;Initial Catalog=$Catalog")
     $c.Open()

@@ -28,7 +28,11 @@ seguridad). Salida: sección `model` de `spec_lock.yaml`. Nunca filas de datos.
 6. **`summarize: sum`** solo en cantidades sumables del hecho; `none` en claves, atributos y
    columnas de dimensión (evita sumas absurdas de ids o precios).
 7. **`sort_by`** para etiquetas que deban ordenarse por otra columna (mes por número de mes).
-8. **Nombres** legibles para el usuario final, en el idioma del cliente, con espacios
+8. **Nombres que Tabular acepta**: una medida no puede llamarse como una tabla ni como una columna de
+   su tabla, y es única en el modelo. Columnas base con sufijo técnico (`Venta Línea`), medidas con
+   el nombre de negocio (`Ventas`); un recuento de la tabla `Pedidos` se llama `Nº Pedidos`. El
+   validador del spec lo comprueba; Desktop no abre el modelo si se incumple.
+9. **Nombres** legibles para el usuario final, en el idioma del cliente, con espacios
    (`Importe Total`, no `ImporteTotal`), consistentes entre tablas.
 
 ## Reglas DAX (obligatorias)
@@ -54,6 +58,22 @@ seguridad). Salida: sección `model` de `spec_lock.yaml`. Nunca filas de datos.
 | ¿Crecemos? (sin filtro) | Último año, Año previo, Crecimiento anual % |
 | ¿Quién pesa? | % del total (`DIVIDE(total, CALCULATE(total, ALL(dim)))`), ranking (`RANKX`) |
 | ¿Cuántos? | Clientes activos (`DISTINCTCOUNT`), Pedidos |
+
+## Modelo listo para Copilot y preguntas en lenguaje natural
+
+Copilot y las preguntas en lenguaje natural leen los metadatos del modelo, así que un modelo bien
+descrito se entiende solo. Es obligatorio, no decorativo:
+
+- `description` en cada tabla, en cada medida y en las columnas cuyo nombre no se explique solo.
+- Nombres de negocio, no técnicos, y sin siglas internas sin explicar.
+- Claves y columnas auxiliares **ocultas** (`hidden: true`): lo que está visible se interpreta como
+  algo que el usuario puede preguntar.
+- Una única tabla de fechas marcada como tal, y relaciones correctas: sin ellas, cualquier respuesta
+  agregada sale mal.
+- Formato declarado en toda medida, para que la respuesta salga con su moneda o su porcentaje.
+- Nada de medidas duplicadas con nombres parecidos: el desambiguador se confunde y el usuario también.
+
+Pendiente de emisor v2: sinónimos por objeto y verificación de preguntas de ejemplo.
 
 ## Seguridad (RLS)
 

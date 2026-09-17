@@ -56,13 +56,13 @@ def _run(tools_dir: Path, mode: str, **kwargs: str) -> dict[str, Any]:
     return data
 
 
-def catalogs(tools_dir: Path, port: int = 0) -> dict[str, Any]:
-    return _run(tools_dir, "catalogs", Port=str(port or ""))
+def catalogs(tools_dir: Path, port: int = 0, desktop_pid: int = 0) -> dict[str, Any]:
+    return _run(tools_dir, "catalogs", Port=str(port or ""), DesktopPid=str(desktop_pid or ""))
 
 
-def refresh(tools_dir: Path, port: int = 0, catalog: str = "") -> dict[str, Any]:
-    return _run(tools_dir, "refresh", Port=str(port or ""), Catalog=catalog)
+def refresh(tools_dir: Path, port: int = 0, catalog: str = "", desktop_pid: int = 0) -> dict[str, Any]:
+    return _run(tools_dir, "refresh", Port=str(port or ""), Catalog=catalog, DesktopPid=str(desktop_pid or ""))
 
 
-def query(tools_dir: Path, dax: str, port: int = 0, catalog: str = "") -> dict[str, Any]:
-    return _run(tools_dir, "query", Port=str(port or ""), Catalog=catalog, Dax=dax)
+def query(tools_dir: Path, dax: str, port: int = 0, catalog: str = "", desktop_pid: int = 0) -> dict[str, Any]:
+    return _run(tools_dir, "query", Port=str(port or ""), Catalog=catalog, Dax=dax, DesktopPid=str(desktop_pid or ""))

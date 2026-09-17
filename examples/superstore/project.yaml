@@ -1,0 +1,24 @@
+# Brief del proyecto (ver docs/01-analisis-viabilidad.md §4.0).
+cliente: "Superstore (dataset público de demostración)"
+modo: crear
+data_classification: publica
+identidad: demo
+audiencia: "Dirección comercial de una cadena minorista en EE. UU.: director comercial y responsables regionales"
+preguntas:
+  - "¿Cómo van las ventas y el beneficio este año frente al anterior?"
+  - "¿Qué regiones, categorías y segmentos de cliente tiran del negocio y cuáles pierden dinero?"
+  - "¿Qué efecto tienen los descuentos en el margen?"
+  - "¿Quiénes son los clientes y productos que más aportan?"
+kpis: ["Ventas", "Beneficio", "Margen %", "Pedidos", "Descuento medio"]
+definiciones:
+  Ventas: "suma de Sales (importe facturado por línea, descuento ya aplicado)"
+  Beneficio: "suma de Profit por línea; puede ser negativo"
+  Margen %: "Beneficio / Ventas"
+  Pedidos: "número de Order ID distintos (un pedido tiene varias líneas)"
+  Grano: "una fila por línea de pedido (producto dentro de un pedido)"
+  Fecha de negocio: "Order Date; Ship Date solo para plazo de envío"
+restricciones:
+  - "Máximo 4 páginas"
+  - "Sin datos personales sensibles: el nombre del cliente es dato de negocio público del dataset"
+seguridad_rls: []
+referencias: []

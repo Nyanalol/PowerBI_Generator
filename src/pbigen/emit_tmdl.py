@@ -41,9 +41,25 @@ def _m_string(text: str) -> str:
     return '"' + text.replace('"', '""') + '"'
 
 
+def _m_field(name: str) -> str:
+    """Acceso a campo en M, siempre con identificador entrecomillado.
+
+    Los identificadores generalizados de M admiten espacios pero no guiones ni otros signos:
+    `[Sub-Category]` hace fallar al motor con "Identificador no válido". `[#"Sub-Category"]` vale
+    siempre, así que se entrecomilla sin excepciones.
+    """
+    return '[#"' + name.replace('"', '""') + '"]'
+
+
 def _dax_col(ref: str) -> str:
     r = FieldRef.parse(ref)
     return f"{_q(r.table)}[{r.prop}]"
+
+
+def _tmdl_col_ref(ref: str) -> str:
+    """Referencia `Tabla.Columna` de TMDL: cada parte entrecomillada si hace falta (Pedidos.'Fecha Pedido')."""
+    r = FieldRef.parse(ref)
+    return f"{_q(r.table)}.{_q(r.prop)}"
 
 
 def _partition_source(table: TableSpec, source: SourceSpec) -> str:
@@ -65,6 +81,11 @@ def _partition_source(table: TableSpec, source: SourceSpec) -> str:
         prev = "Headers"
     else:
         prev = "Item"
+    if table.source.distinct_key:
+        key = table.source.distinct_key
+        aggs = ", ".join("{" + _m_string(a) + ", each List.First(" + _m_field(a) + ")}" for a in table.source.attributes)
+        lines.append(f"    Grouped = Table.Group({prev}, {{{_m_string(key)}}}, {{{aggs}}}),")
+        prev = "Grouped"
     lines += [
         f"    Typed = Table.TransformColumnTypes({prev}, {{{types}}})",
         "in",
@@ -144,7 +165,8 @@ def date_table_dax(dt: DateTableSpec) -> str:
             '        "MesNum", MONTH([Fecha]),',
             f'        "Mes", FORMAT([Fecha], "{dt.locale_month_format}"),',
             '        "Trimestre", "T" & FORMAT([Fecha], "q"),',
-            '        "AñoMes", FORMAT([Fecha], "yyyy-MM")',
+            '        "AñoMes", FORMAT([Fecha], "yyyy-MM"),',
+            '        "AñoTrimestre", FORMAT([Fecha], "yyyy") & "-T" & FORMAT([Fecha], "q")',
             "    )",
         ]
     )
@@ -177,8 +199,8 @@ def relationships_tmdl(rels: list[RelationshipSpec]) -> str:
             out.append("\tisActive: false")
         if r.cross_filter == "both":
             out.append("\tcrossFilteringBehavior: bothDirections")
-        out.append(f"\tfromColumn: {_dax_col(r.from_).replace('[', '.').rstrip(']')}")
-        out.append(f"\ttoColumn: {_dax_col(r.to).replace('[', '.').rstrip(']')}")
+        out.append(f"\tfromColumn: {_tmdl_col_ref(r.from_)}")
+        out.append(f"\ttoColumn: {_tmdl_col_ref(r.to)}")
         out.append("")
     return "\n".join(out)
 

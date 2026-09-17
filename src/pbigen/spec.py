@@ -61,11 +61,17 @@ class TableSourceSpec(StrictModel):
     source: str
     sheet: str | None = None
     table: str | None = None
+    # Dimensión derivada de una hoja plana: una fila por `distinct_key`, atributos con el primer
+    # valor observado (Table.Group + List.First). Garantiza clave única aunque el origen esté sucio.
+    distinct_key: str | None = None
+    attributes: list[str] = []
 
     @model_validator(mode="after")
     def _one_of(self) -> "TableSourceSpec":
         if bool(self.sheet) == bool(self.table):
             raise ValueError("indica exactamente uno de `sheet` o `table`")
+        if self.attributes and not self.distinct_key:
+            raise ValueError("`attributes` requiere `distinct_key`")
         return self
 
 
@@ -82,6 +88,13 @@ class TableSpec(StrictModel):
         for c in self.columns:
             if c.sort_by and c.sort_by not in names:
                 raise ValueError(f"tabla {self.name!r}: sort_by {c.sort_by!r} de {c.name!r} no existe")
+        if self.source.distinct_key:
+            allowed = {self.source.distinct_key, *self.source.attributes}
+            for c in self.columns:
+                if (c.source_column or c.name) not in allowed:
+                    raise ValueError(
+                        f"tabla {self.name!r}: la columna {c.name!r} no está en distinct_key ni en attributes"
+                    )
         return self
 
 
@@ -102,6 +115,8 @@ class DateTableSpec(StrictModel):
             ColumnSpec(name="Mes", type="string", sort_by="MesNum"),
             ColumnSpec(name="Trimestre", type="string"),
             ColumnSpec(name="AñoMes", type="string"),
+            # Eje temporal para series largas: 4 años son 48 meses (ilegibles) pero solo 16 trimestres
+            ColumnSpec(name="AñoTrimestre", type="string"),
         ]
 
 
@@ -184,6 +199,10 @@ class VisualSpec(StrictModel):
     values: list[str] = []
     series: str | None = None
     sort: Literal["auto", "category", "value"] = "auto"  # auto: categoría si es temporal, valor si no
+    # `asc` sobre el valor pone lo peor arriba: es como se destacan las pérdidas en un ranking
+    sort_direction: Literal["auto", "asc", "desc"] = "auto"
+    # Con pocas barras, el número junto al dato sustituye al eje de valores y aprovecha el ancho
+    data_labels: bool = False
     # matrix
     rows: list[str] = []
     columns: list[str] = []
@@ -306,6 +325,20 @@ class SpecLock(StrictModel):
         for t in self.model.tables:
             if t.source.source not in source_ids:
                 raise ValueError(f"tabla {t.name!r}: origen {t.source.source!r} no declarado")
+        # Restricciones de nombres de Tabular (Desktop no abre el modelo si se incumplen):
+        # una medida no puede llamarse como una tabla, ni como una columna de su tabla,
+        # y los nombres de medida son únicos en todo el modelo.
+        seen_measures: dict[str, str] = {}
+        for t in self.model.tables:
+            col_names = {c.name for c in t.columns}
+            for m in t.measures:
+                if m.name in names:
+                    raise ValueError(f"medida {m.name!r} se llama igual que una tabla; renómbrala (p. ej. 'Nº {m.name}')")
+                if m.name in col_names:
+                    raise ValueError(f"medida {m.name!r} se llama igual que una columna de {t.name!r}; renombra la columna base")
+                if m.name in seen_measures:
+                    raise ValueError(f"medida {m.name!r} repetida en {seen_measures[m.name]!r} y {t.name!r}")
+                seen_measures[m.name] = t.name
         for rel in self.model.relationships:
             for side in (rel.from_, rel.to):
                 if self.field_kind(side) != "Column":
@@ -327,3 +360,12 @@ class SpecLock(StrictModel):
 def load_spec(path: Path) -> SpecLock:
     data = yaml.safe_load(path.read_text(encoding="utf-8"))
     return SpecLock.model_validate(data)
+
+
+def load_sources(path: Path) -> list[SourceSpec]:
+    """Solo la sección `sources`: lo único que existe antes de diseñar el modelo."""
+    data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    sources = [SourceSpec.model_validate(s) for s in data.get("sources") or []]
+    if not sources:
+        raise ValueError(f"{path}: declara al menos un origen en `sources`")
+    return sources

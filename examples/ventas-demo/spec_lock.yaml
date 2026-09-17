@@ -63,7 +63,7 @@ report:
   pages:
     - name: Resumen
       visuals:
-        - { type: textbox, name: titulo, text: "Ventas — resumen ejecutivo", font_size_pt: 22, grid: { col: 0, row: 0, cols: 8, rows: 1 } }
+        - { type: textbox, name: titulo, text: "Resumen de ventas", font_size_pt: 22, grid: { col: 0, row: 0, cols: 8, rows: 1 } }
         - { type: slicer, name: f_anio, field: "Fechas[Año]", mode: dropdown, title: Año, grid: { col: 8, row: 0, cols: 2, rows: 1 } }
         - { type: slicer, name: f_region, field: "Clientes[Region]", mode: dropdown, title: Región, grid: { col: 10, row: 0, cols: 2, rows: 1 } }
         - { type: card, name: kpi_importe, measure: "Ventas[Importe Total]", title: Importe total, grid: { col: 0, row: 1, cols: 3, rows: 2 } }

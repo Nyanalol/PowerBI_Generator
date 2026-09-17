@@ -1,4 +1,4 @@
-# PowerBI Generator — guía para agentes
+# PowerBI Generator: guía para agentes
 
 Generador de proyectos Power BI (carpeta PBIP: modelo semántico en TMDL + informe en PBIR) a partir
 de una especificación declarativa. Uso previsto: equipo de consultoría, varios clientes, varias
@@ -97,5 +97,9 @@ tests/           pytest; los tests llaman al código de producción, no a copias
 ## Estilo
 
 - Español en documentación y mensajes de usuario; inglés en identificadores de código.
+- **Sin rayas ni guiones dobles** (`—`, `--`) en ningún texto: código, documentación, títulos de
+  informe o mensajes. Coma, dos puntos o punto.
+- **Sin títulos con pregunta** en páginas y visuales: un informe se consulta de forma periódica,
+  así que los títulos son afirmativos y descriptivos.
 - Commits pequeños, un cambio por commit, mensaje en español.
 - Los tests usan el productor real (`build_project`, `generate_ventas`), nunca fixtures inventadas.

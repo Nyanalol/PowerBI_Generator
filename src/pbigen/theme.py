@@ -38,9 +38,9 @@ class BrandFonts(BaseModel):
 
     family: str = "Segoe UI"
     family_bold: str | None = None
-    title_size: int = 14
-    label_size: int = 10
-    callout_size: int = 32
+    title_size: int = 13
+    label_size: int = 11  # ejes, leyendas y tablas: 10 pt se lee mal en pantalla grande
+    callout_size: int = 40  # la cifra de una tarjeta manda; con 32 pt sobraba espacio vacío
 
 
 class Brand(BaseModel):
@@ -91,9 +91,35 @@ def _theme_body(brand: Brand) -> dict:
                     "background": [{"show": True, "color": {"solid": {"color": c.background}}, "transparency": 0}],
                     "border": [{"show": True, "color": {"solid": {"color": "#E1DFDD"}}, "radius": brand.card_radius}],
                     "visualHeader": [{"show": True}],
+                    # Menos aire alrededor del contenido: el visual ya tiene borde y título.
+                    # `$id: default` es obligatorio en los objetos que declaran selector, o Desktop
+                    # ignora la entrada del tema en silencio.
+                    "padding": [{"$id": "default", "top": 6, "bottom": 6, "left": 10, "right": 10}],
                     # Los títulos de eje repiten lo que ya dice el título del visual y se truncan
-                    "categoryAxis": [{"showAxisTitle": False, "gridlineShow": False}],
-                    "valueAxis": [{"showAxisTitle": False, "gridlineStyle": "dotted"}],
+                    "categoryAxis": [
+                        {"showAxisTitle": False, "gridlineShow": False, "fontSize": f.label_size, "maxMarginFactor": 35}
+                    ],
+                    "valueAxis": [{"showAxisTitle": False, "gridlineStyle": "dotted", "fontSize": f.label_size}],
+                    "legend": [{"fontSize": f.label_size, "showTitle": False}],
+                    "labels": [{"fontSize": f.label_size}],
+                }
+            },
+            # La tarjeta: cifra grande, sin marco interior ni relleno que roben espacio
+            "cardVisual": {
+                "*": {
+                    "value": [{"fontSize": f.callout_size, "fontFamily": bold, "fontColor": {"solid": {"color": c.foreground}}}],
+                    "label": [{"$id": "default", "fontSize": f.label_size + 1, "fontColor": {"solid": {"color": c.secondary}}}],
+                    "cardCalloutArea": [{"paddingUniform": 0, "backgroundTransparency": 100}],
+                    "layout": [{"$id": "default", "paddingUniform": 4, "borderWidth": 0, "customizeLines": False}],
+                }
+            },
+            # La matriz gana filas visibles apretando el interlineado
+            "pivotTable": {
+                "*": {
+                    "grid": [{"rowPadding": 2, "textSize": f.label_size}],
+                    "values": [{"fontSize": f.label_size}],
+                    "columnHeaders": [{"fontSize": f.label_size, "fontFamily": bold}],
+                    "rowHeaders": [{"fontSize": f.label_size}],
                 }
             },
             "page": {"*": {"background": [{"color": {"solid": {"color": "#F5F5F5"}}, "transparency": 0}]}},

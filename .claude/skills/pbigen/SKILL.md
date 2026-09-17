@@ -30,7 +30,7 @@ brief + datos → [1] init + profile → [2] Analyst: modelo → [3] Data Analys
 6. **Idioma**: el del usuario para todo lo visible; nombres de tablas y medidas en el idioma del
    cliente (por defecto español), identificadores de código en inglés.
 
-## Paso 1 — Proyecto y perfil
+## Paso 1. Proyecto y perfil
 
 ```text
 uv run pbigen doctor <proyecto>                 # si falla algo, decirlo y parar en lo que dependa de ello
@@ -44,14 +44,14 @@ Si el proyecto es nuevo, antes de perfilar hay que declarar los orígenes en `sp
 `docs/01-analisis-viabilidad.md` (definiciones de KPI, grano, exclusiones, RLS) se pregunta
 **antes** del gate, agrupado en una sola tanda de preguntas, no una a una.
 
-## Paso 2 — Analyst (modelo). Leer `references/analyst.md`
+## Paso 2. Analyst (modelo). Leer `references/analyst.md`
 
 Entrada: `analysis/data_profile.json` + `project.yaml`. Salida: la sección `model` de
 `spec_lock.yaml` (tablas, columnas con tipo y formato, claves ocultas, relaciones, tabla de
 fechas, medidas con DAX, descripción, formato y carpeta). Aplica las reglas de M/DAX de la
 referencia como obligatorias, no como consejo.
 
-## Paso 3 — Data Analyst (ideas). Leer `references/data-analyst.md`
+## Paso 3. Data Analyst (ideas). Leer `references/data-analyst.md`
 
 Con la gorra de analista de negocio: qué preguntas responde el informe, qué KPIs merecen
 tarjeta, qué comparaciones aportan (tendencia, año contra año, ranking, concentración,
@@ -61,7 +61,7 @@ intención y visuales candidatos, y una lista corta de ideas que **no** caben en
 (parámetros de campo, formato condicional, líneas de referencia) marcadas como "pendiente de
 emisor v2", para que el usuario sepa que existen sin prometerlas.
 
-## Paso 4 — Strategist (spec y gate). Leer `references/strategist.md`
+## Paso 4. Strategist (spec y gate). Leer `references/strategist.md`
 
 Traduce el modelo y las ideas a `spec_lock.yaml` completo (rejilla 12×8, tema, páginas,
 visuales) y a `tests/medidas.yaml` (cada medida con su SQL de oráculo). Presenta al usuario un
@@ -69,7 +69,7 @@ resumen en su idioma: tablas y relaciones, medidas (nombre, qué calcula), pági
 visuales), tema, y las ideas pendientes de emisor v2. **⛔ Espera confirmación o cambios.** Solo
 tras el "adelante" se escribe el spec definitivo.
 
-## Paso 5 — Executor
+## Paso 5. Executor
 
 ```text
 uv run pbigen build <proyecto>
@@ -81,7 +81,7 @@ Si `validate` o `check` fallan, la causa está en el spec o en el emisor. Correg
 un error de diseño; si es una limitación del emisor, documentarla y proponer la ampliación.
 Nunca editar `pbip/` a mano.
 
-## Paso 6 — QA. Leer `references/qa.md`
+## Paso 6. QA y diseño. Leer `references/qa.md` y `references/designer.md`
 
 ```text
 uv run pbigen open <proyecto>         # primera vez o tras cambiar el modelo (cierra y reabre)
@@ -92,10 +92,12 @@ uv run pbigen screenshot <proyecto>   # y LEER cada PNG con la checklist de qa.m
 ```
 
 Tras reabrir Desktop, si `screenshot` dice "Report view is not active", ejecutar `reload` y
-repetir. Cada hallazgo visual se corrige en el spec y se repite 5-6. Máximo tres vueltas; si algo
-no se resuelve, se entrega con el hallazgo documentado.
+repetir. **Las capturas se revisan con el rol de diseñador de Power BI** (`references/designer.md`),
+no de pasada: se juzga si cada visual merece su espacio, si se aprovecha el ancho y si algo tiene un
+scroll que delata un gráfico mal elegido. Cada hallazgo se corrige en el spec o en el tema y se
+repite 5-6. Máximo tres vueltas; si algo no se resuelve, se entrega con el hallazgo documentado.
 
-## Paso 7 — Entrega
+## Paso 7. Entrega
 
 Resumen final para el usuario: qué se generó (ruta de la carpeta PBIP completa, nunca solo el
 `.pbip`), resultado de validate/check/test con números, capturas revisadas y qué se vio, ideas

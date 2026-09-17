@@ -103,14 +103,16 @@ def _oracle(project_dir: Path, spec: SpecLock) -> duckdb.DuckDBPyConnection:
     return con
 
 
-def run_tests(project_dir: Path, spec: SpecLock, tools_dir: Path, cases: list[TestCase] | None = None) -> list[TestResult]:
+def run_tests(
+    project_dir: Path, spec: SpecLock, tools_dir: Path, cases: list[TestCase] | None = None, desktop_pid: int = 0
+) -> list[TestResult]:
     project_dir = project_dir.resolve()
     cases = cases if cases is not None else load_tests(project_dir)
     con = _oracle(project_dir, spec)
     results: list[TestResult] = []
     for c in cases:
         try:
-            data = engine.query(tools_dir, c.dax)
+            data = engine.query(tools_dir, c.dax, desktop_pid=desktop_pid)
             dax_rows = [tuple(_norm(v) for v in row.values()) for row in data.get("rows", [])]
             if c.sql:
                 expected = [tuple(_norm(v) for v in row) for row in con.execute(c.sql).fetchall()]

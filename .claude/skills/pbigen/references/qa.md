@@ -19,6 +19,9 @@ valor (dales `rows: 2`) o no hay datos (`refresh`).
 
 ## Checklist visual, página por página (leer el PNG, no suponer)
 
+La revisión visual completa, con criterio de diseño, está en `designer.md`: empieza por si el
+visual merece su espacio y termina en el aprovechamiento del ancho. Lo de aquí es el mínimo:
+
 - **Datos**: ningún visual vacío, ningún "(Blank)", ninguna tarjeta con guiones.
 - **Títulos**: cada visual con un título que diga qué pregunta responde; **ningún texto
   repetido** (tarjeta con etiqueta y título iguales, slicer con cabecera duplicada).

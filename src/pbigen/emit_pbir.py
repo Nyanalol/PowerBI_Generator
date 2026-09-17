@@ -45,6 +45,15 @@ def _literal(value: str) -> dict:
     return {"expr": {"Literal": {"Value": value}}}
 
 
+# Codificación de literales PBIR, comprobada con `powerbi-report-author expr encode`
+def _num(value: float) -> dict:
+    return {"expr": {"Literal": {"Value": f"{value}D"}}}
+
+
+def _int(value: int) -> dict:
+    return {"expr": {"Literal": {"Value": f"{value}L"}}}
+
+
 def _field(spec: SpecLock, ref: str) -> dict:
     r = FieldRef.parse(ref)
     kind = spec.field_kind(ref)
@@ -86,7 +95,9 @@ def _container_objects(v: VisualSpec) -> dict:
     return objs
 
 
-def visual_json(spec: SpecLock, page: PageSpec, v: VisualSpec, z: int) -> dict:
+def visual_json(
+    spec: SpecLock, page: PageSpec, v: VisualSpec, z: int, card_value_size: int = 40, card_label_size: int = 12
+) -> dict:
     name = hex_id(spec.project, page.name, v.name)
     x, y, w, h = v.position(page.width, page.height)
     doc: dict = {
@@ -114,21 +125,49 @@ def visual_json(spec: SpecLock, page: PageSpec, v: VisualSpec, z: int) -> dict:
     elif v.type == "card":
         visual["query"] = {"queryState": {"Data": _role(spec, [v.measure or ""])}, "sortDefinition": {"isDefaultSort": True}}
         visual["drillFilterOtherVisuals"] = True
+        # La tarjeta ignora estas propiedades cuando llegan por el tema, así que las escribe el
+        # emisor: cifra grande, sin marco interior y sin relleno que desaproveche el espacio.
+        objects: dict = {
+            "value": [{"properties": {"fontSize": _num(card_value_size)}}],
+            "layout": [{"properties": {"paddingUniform": _int(2)}, "selector": {"id": "default"}}],
+        }
+        # La tarjeta dibuja su propia caja (cardCalloutArea). Con el borde y el fondo del contenedor
+        # se ven dos marcos concéntricos, así que el contenedor se apaga y manda la caja interna.
+        container_off = {
+            "border": [{"properties": {"show": _literal("false")}}],
+            "background": [{"properties": {"show": _literal("false")}}],
+        }
         if v.title:
             # La tarjeta ya tiene etiqueta propia: el título va ahí y el del contenedor se oculta
             # (patrón recomendado por Microsoft; evita "Importe total" dos veces).
-            visual["objects"] = {
-                "label": [{"properties": {"show": _literal("true"), "text": _literal(f"'{v.title}'")}, "selector": {"id": "default"}}]
-            }
-            visual["visualContainerObjects"] = {"title": [{"properties": {"show": _literal("false")}}]}
+            objects["label"] = [
+                {
+                    "properties": {"show": _literal("true"), "text": _literal(f"'{v.title}'"), "fontSize": _num(card_label_size)},
+                    "selector": {"id": "default"},
+                }
+            ]
+            container_off["title"] = [{"properties": {"show": _literal("false")}}]
+        visual["visualContainerObjects"] = container_off
+        visual["objects"] = objects
     elif v.type in ("line", "column", "bar"):
         qs = {"Category": _role(spec, [v.category or ""], active_first=True), "Y": _role(spec, v.values)}
         if v.series:
             qs["Series"] = _role(spec, [v.series])
         by_category = v.sort == "category" or (v.sort == "auto" and (v.type == "line" or _is_temporal(spec, v.category or "")))
-        sort = _sort(spec, v.category or "", "Ascending") if by_category else _sort(spec, v.values[0], "Descending")
+        if by_category:
+            direction = "Descending" if v.sort_direction == "desc" else "Ascending"
+            sort = _sort(spec, v.category or "", direction)
+        else:
+            direction = "Ascending" if v.sort_direction == "asc" else "Descending"
+            sort = _sort(spec, v.values[0], direction)
         visual["query"] = {"queryState": qs, "sortDefinition": sort}
         visual["drillFilterOtherVisuals"] = True
+        if v.data_labels:
+            # El valor va junto a la barra; el eje entonces sobra y su espacio pasa al gráfico
+            visual["objects"] = {
+                "labels": [{"properties": {"show": _literal("true")}}],
+                "valueAxis": [{"properties": {"show": _literal("false")}}],
+            }
     elif v.type == "matrix":
         qs = {"Rows": _role(spec, v.rows, active_first=True), "Values": _role(spec, v.values)}
         if v.columns:
@@ -211,8 +250,11 @@ def write_report(spec: SpecLock, out_dir: Path) -> Path:
     _dump(d / "version.json", {"$schema": S_VERSION, "version": "2.0.0"})
 
     custom_theme: str | None = None
+    card_value, card_label = 40, 12
     if spec.report.theme.brand:
-        custom_theme, tdoc = build_theme(load_brand(spec.report.theme.brand))
+        brand = load_brand(spec.report.theme.brand)
+        card_value, card_label = brand.fonts.callout_size, brand.fonts.label_size + 1
+        custom_theme, tdoc = build_theme(brand)
         _dump(rp / "StaticResources" / "RegisteredResources" / custom_theme, tdoc)
     _dump(d / "report.json", report_json(custom_theme))
 
@@ -223,7 +265,7 @@ def write_report(spec: SpecLock, out_dir: Path) -> Path:
         _dump(pdir / "page.json", page_json(spec, p))
         (pdir / "visuals").mkdir(parents=True, exist_ok=True)
         for i, v in enumerate(p.visuals):
-            doc = visual_json(spec, p, v, z=(i + 1) * 1000)
+            doc = visual_json(spec, p, v, z=(i + 1) * 1000, card_value_size=card_value, card_label_size=card_label)
             _dump(pdir / "visuals" / doc["name"] / "visual.json", doc)
     themes = rp / "StaticResources" / "SharedResources" / "BaseThemes"
     themes.mkdir(parents=True, exist_ok=True)

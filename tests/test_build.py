@@ -139,3 +139,69 @@ def test_tmdl_model_shape(project: Path) -> None:
     assert "\tfromColumn: Ventas.ProductoId\n\ttoColumn: Productos.ProductoId" in rels
     model = (r.semantic_model / "definition" / "model.tmdl").read_text(encoding="utf-8")
     assert "ref table Fechas" in model
+
+
+def test_relationship_columns_with_spaces_are_quoted(tmp_path: Path) -> None:
+    """Desktop rechaza `fromColumn: Pedidos.Fecha Pedido`; exige Pedidos.'Fecha Pedido' (visto en 2.157)."""
+    from pbigen.emit_tmdl import relationships_tmdl
+    from pbigen.spec import RelationshipSpec
+
+    text = relationships_tmdl([RelationshipSpec(**{"from": "Pedidos[Fecha Pedido]", "to": "Fechas[Fecha]"})])
+    assert "\tfromColumn: Pedidos.'Fecha Pedido'" in text
+    assert "\ttoColumn: Fechas.Fecha" in text
+
+
+def test_spec_rejects_measure_named_like_table_or_column(tmp_path: Path) -> None:
+    """Desktop no abre un modelo con una medida llamada como su tabla o como una columna (visto con Superstore)."""
+    base = (EXAMPLE / "spec_lock.yaml").read_text(encoding="utf-8")
+    bad = base.replace("- { name: Importe Total, dax:", "- { name: Ventas, dax:", 1)
+    (tmp_path / "spec_lock.yaml").write_text(bad, encoding="utf-8")
+    with pytest.raises(ValueError, match="igual que una tabla"):
+        load_spec(tmp_path / "spec_lock.yaml")
+    bad = base.replace("- { name: Importe Total, dax:", "- { name: Importe, dax:", 1)
+    (tmp_path / "spec_lock.yaml").write_text(bad, encoding="utf-8")
+    with pytest.raises(ValueError, match="igual que una columna"):
+        load_spec(tmp_path / "spec_lock.yaml")
+
+
+def test_m_field_access_is_always_quoted() -> None:
+    """`[Sub-Category]` rompe el motor M con "Identificador no válido": hay que usar [#"..."]."""
+    from pbigen.emit_tmdl import table_tmdl
+    from pbigen.spec import ColumnSpec, SourceSpec, TableSourceSpec, TableSpec
+
+    table = TableSpec(
+        name="Productos",
+        source=TableSourceSpec(source="s", sheet="Hoja", distinct_key="Product ID", attributes=["Sub-Category"]),
+        columns=[
+            ColumnSpec(name="ProductoId", source_column="Product ID", type="string"),
+            ColumnSpec(name="Subcategoría", source_column="Sub-Category", type="string"),
+        ],
+    )
+    text = table_tmdl(table, SourceSpec(id="s", type="excel", path="sources/x.xlsx"))
+    assert 'each List.First([#"Sub-Category"])' in text
+    assert "List.First([Sub-Category])" not in text
+
+
+def test_date_table_has_quarter_axis_and_sort_direction(project: Path) -> None:
+    """4 años son 48 meses ilegibles en un eje; AñoTrimestre da 16 puntos. `sort_direction: asc`
+    pone lo peor arriba en un ranking (así se ven las pérdidas)."""
+    from pbigen.emit_pbir import visual_json
+    from pbigen.spec import GridPos, VisualSpec
+
+    r = build_project(project)
+    fechas = (r.semantic_model / "definition" / "tables" / "Fechas.tmdl").read_text(encoding="utf-8")
+    assert "\tcolumn AñoTrimestre" in fechas
+    assert '"AñoTrimestre", FORMAT([Fecha], "yyyy") & "-T" & FORMAT([Fecha], "q")' in fechas
+
+    spec = load_spec(project / "spec_lock.yaml")
+    page = spec.report.pages[0]
+    v = VisualSpec(
+        type="bar",
+        name="ranking",
+        category="Productos[Producto]",
+        values=["Ventas[Importe Total]"],
+        sort_direction="asc",
+        grid=GridPos(col=0, row=0, cols=4, rows=3),
+    )
+    doc = visual_json(spec, page, v, z=1000)
+    assert doc["visual"]["query"]["sortDefinition"]["sort"][0]["direction"] == "Ascending"

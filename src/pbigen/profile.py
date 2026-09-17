@@ -14,7 +14,7 @@ from typing import Any
 
 import pandas as pd
 
-from .spec import SpecLock
+from .spec import SourceSpec, SpecLock
 
 def _suggested_type(s: pd.Series) -> str:
     if pd.api.types.is_bool_dtype(s):
@@ -79,10 +79,11 @@ def load_sheets(path: Path) -> dict[str, pd.DataFrame]:
     return pd.read_excel(path, sheet_name=None)
 
 
-def profile_project(project_dir: Path, spec: SpecLock, sample_rows: int = 0) -> Path:
+def profile_project(project_dir: Path, spec_or_sources: "SpecLock | list[SourceSpec]", sample_rows: int = 0) -> Path:
     project_dir = project_dir.resolve()
+    sources = spec_or_sources.sources if isinstance(spec_or_sources, SpecLock) else spec_or_sources
     result: dict[str, Any] = {"generated_at": datetime.now().isoformat(timespec="seconds"), "sources": []}
-    for src in spec.sources:
+    for src in sources:
         path = project_dir / src.path
         sheets = load_sheets(path)
         result["sources"].append(
